@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Browser ECMAScript Environment</title>
+    <style>
+        body {
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+<h1>Browser ECMAScript Environment</h1>
+<p>open the console to test it out</p>
+<script src="javascript.js"></script>
+<script src="deepproxy.js"></script>
+<script src="utils.js"></script>
+<pre></pre>
+<script>
+    function getFrom(property, array, separator = '') {
+        const result = [];
+        for (const arrayElement of array) {
+            result.push(arrayElement[property]);
+        }
+        return result.join(separator)
+    }
+
+    (function () {
+        //function sane(){return 5;}
+
+        const hello = new SandboxedFunction(`function sane(a, b){return a+b;}
+        function insane(f) {
+            f = Math.trunc(f);
+            if (f === 1) {
+                return 1;
+            }
+            return f(f - 1);
+        }console.log(insane(5))`);//; window['console']['log']("world")
+        console.log(hello.run());
+        document.querySelector('pre').innerText += JSON.stringify(hello, null, 2);
+    })();
+</script>
+</body>
+</html>
