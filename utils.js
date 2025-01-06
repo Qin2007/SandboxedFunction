@@ -95,12 +95,16 @@ function typeOf(o, mode = 0) {
             }
         }
     }
+    if (t === 'undefined' && m & typeOf.undefinedIsNULL) {
+        return 'NULL';
+    }
     return t;
 }
 
 typeOf.identifyVia_constructor = 64;
 typeOf.checkArraySeperately = 1;
 typeOf.functionsAreObjects = 2;
+typeOf.undefinedIsNULL = 256;
 typeOf.identifyPromise = 32;
 typeOf.NULL_IsObject = 128;
 typeOf.identifyRegExp = 8;
@@ -165,7 +169,8 @@ function loose_equal(...parameters) {
             }
             if ((typeOf(primitiveA) === "bigint" && typeOf(primitiveB) === "string") ||
                 (typeOf(primitiveA) === "string" && typeOf(primitiveB) === "bigint")) {
-                try{if (typeOf(primitiveA) === 'string') primitiveA = BigInt(primitiveA);
+                try {
+                    if (typeOf(primitiveA) === 'string') primitiveA = BigInt(primitiveA);
                     if (typeOf(primitiveB) === 'string') primitiveB = BigInt(primitiveB);
                     return primitiveA === primitiveB;
                 } catch {

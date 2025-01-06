@@ -57,3 +57,18 @@ function new_Promise(primise, paramObject) {
         }
     });
 }
+
+function Counter(name) {
+    if (!new.target) {
+        return {
+            countUp: (function () {
+                console.count(name);
+            })
+        };
+    }
+    this.count = 0;
+}
+
+Counter.prototype.countUp = (function () {
+    return ++this.count;
+});

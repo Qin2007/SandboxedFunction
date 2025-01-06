@@ -23,14 +23,13 @@
             max-width: 650px;
         }
 
-        /*body{background-color:#6a35a6;}*/
         body {
-            background-color: #a68300;
+            background-color: #6a35a6;
         }
     </style>
 </head>
 <body>
-<nav class="main nav-home" style="border-bottom-color:#fff100;">
+<nav class="main nav-home" style="border-bottom-color:#8e46db;">
     <div class="navdiv nav-home" role=none>
         <div class="flex-item nav-home"
              style="border-color:currentColor;border-bottom:none;background-color:currentColor;width:4em;height:4em;">
@@ -40,17 +39,17 @@
             </a>
         </div>
         <div class="flex-item nav-home"
-             style="border-color:#fff100;border-bottom:none;background-color:#a68300;width:4em;height:4em;">
+             style="border-color:currentColor;border-bottom:none;background-color:currentColor;width:4em;height:4em;">
             <a href="/browser/">
                 <img src="https://ant.ractoc.com/dollmaker1/endpoint.php?preset=Bee" width="512"
                      height="512" alt="javascript ANT" title="javascript ANT">
             </a>
         </div>
         <div class="flex-item nav-home"
-             style="border-color:currentColor;border-bottom:none;background-color:currentColor;width:4em;height:4em;">
+             style="border-color:#8e46db;border-bottom:none;background-color:#6a35a6;width:4em;height:4em;">
             <a href="php.html">
                 <img src="https://ant.ractoc.com/dollmaker1/endpoint.php?preset=Magnata"
-                     width="512" height="512" alt="PHP ANT (WIP)" title="PHP ANT (WIP)">
+                     width="512" height="512" alt="PHP ANT (WIP)">
             </a>
         </div>
     </div>
@@ -67,30 +66,3 @@
     ></script>
     <pre></pre>
 </div>
-<script>
-    function getFrom(property, array, separator = '') {
-        const result = [];
-        for (const arrayElement of array) {
-            result.push(arrayElement[property]);
-        }
-        return result.join(separator)
-    }
-
-    (function () {
-        //function sane(){return 5;}
-        const code = `function sane(a, b){return a+b;}
-        function insane(f) {
-            f = Math.trunc(0.5);
-            if (f === 1) {
-                return 1;
-            }
-            return insane(f - 1);
-        }console.log(insane(5))`;
-        document.querySelector('pre').innerText += JSON.stringify(SandboxedFunction(code), null, 2);
-        const hello = new SandboxedFunction(code);
-        console.log(hello.run());
-        document.querySelector('pre').innerText += JSON.stringify(hello, null, 2);
-    })();
-</script>
-</body>
-</html>

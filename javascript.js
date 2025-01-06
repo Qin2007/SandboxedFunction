@@ -34,12 +34,15 @@ function SandboxedFunction(javascript, globalObject) {
         Date: {
             [SandboxedFunction.prototype.__callsp](object) {
                 // object.length;
-                return new Date(object.parameters);
+                // noinspection JSCheckFunctionSignatures
+                return new Date(...object.parameters);
             }
         },
-        versionId: '0.0.42'
+        versionId: '0.0.42',
     };
-    this.globalObject = DeepProxy(globalObject ?? defaultObject);
+    defaultObject.this = defaultObject;
+    defaultObject.globalThis = defaultObject;
+    const globalObject_ = DeepProxy(globalObject ?? defaultObject);
 
     const hoistedVars = [];
     const tokensNoFunction = [];
@@ -99,7 +102,7 @@ function SandboxedFunction(javascript, globalObject) {
                     if ((--context.nested) === 0) {
                         functions.push(new __SandBoxedBuiltInFunction(
                             context.Name, context.arguments,
-                            context.body, context.source, this.globalObject));
+                            context.body, context.source, globalObject_));
                         context = __createFunctionTemplate();
                     }
                 } else {
@@ -122,11 +125,12 @@ function SandboxedFunction(javascript, globalObject) {
     }
     if (!new.target) {
         //called without new
-        throw new TypeError("SandboxedFunction must be invoked with 'new'");
+        return __tokens;//throw new TypeError("SandboxedFunction must be invoked with 'new'");
     }
     this.tokens = __tokens;
     this.functions = functions;
     this.hoistedVars = hoistedVars;
+    this.globalObject = globalObject_;
     this.tokensNoFunction = tokensNoFunction;
     /*this.globalObject.console = {
         log: function (...rest) {
@@ -151,7 +155,13 @@ SandboxedFunction.prototype.run = function (Arguments) {
     //let nested = 0;
     let isStrict = null;
     const accessChain = [];
-    const context = {stage: '404', functionChain: [], foundReturn: false, setVar: [], unaryMinus: false};
+    const context = new Proxy({stage: '404', functionChain: [], foundReturn: false, setVar: [], unaryMinus: false},
+        {
+            set(target, p, newValue, receiver) {
+                if (p === 'stage') console.log('Reflect.set', newValue);
+                return Reflect.set(target, p, newValue);
+            }
+        });
     for (const token of this.tokensNoFunction) {
         if (token.type === "comment") continue;
         if (isStrict === null && token.type === 'string' && /(["'])use strict\1/.test(token.value)) {
@@ -168,13 +178,14 @@ SandboxedFunction.prototype.run = function (Arguments) {
                 if (context.stage === '404') {
                     if (token.value === 'return') {
                         context.foundReturn = true;
-                        context.stage = 'expression'
+                        context.stage = 'expression';
                     }
                 }
                 break;
             case'identifier':
             case'DotAccess':
                 accessChain.push(token.value);
+                console.log(188, context.stage);
                 if (context.stage === '404')
                     context.stage = 'Id';
                 break;
@@ -218,15 +229,18 @@ SandboxedFunction.prototype.run = function (Arguments) {
             case'delimiter':
                 if (token.value === '(') {
                     if ('argument argument, Id expression'.split(' ').includes(context.stage)) {
+                        console.log('accessChain', accessChain, context.stage);
                         context.functionChain.push({'accessTo': [...accessChain], with: []});
                         context.stage = 'argument';
                         accessChain.length = 0;
                     }
                 } else if (token.value === ';' &&
-                    'argument argument, expression'.split(' ').includes(context.stage)) {
+                    'argument argument, Id expression'.split(' ').includes(context.stage)) {
                     if (context.stage === 'expression') {
                         preformAssignment(context, accessChain);
                     }
+                } else if (token.value === ';') {
+                    throw new Error(JSON.stringify({context, accessChain}));
                 } else if (token.value === ')' && 'argument argument,'.split(' ').includes(context.stage)) {
                     const theFunction = context.functionChain.pop();//[context.functionChain.length - 1];
                     const theActualFunction = this.__resolveReference(this.globalObject, theFunction.accessTo);
@@ -236,6 +250,7 @@ SandboxedFunction.prototype.run = function (Arguments) {
                         theFunction.accessTo, theFunction.with);*/
                     const type = typeOf(theActualFunction);
                     if (type === 'undefined' || type === 'NULL') {
+                        console.error(theFunction, theActualFunction);
                         throw new TypeError(`do not call undefined, you attempted to call (${theFunction.accessTo.join('.')})`);
                     } else if ((type === 'function' || theActualFunction.constructor === __SandBoxedBuiltInFunction)
                         || (type === 'object' && (SandboxedFunction.prototype.__call in theActualFunction))) {
@@ -268,6 +283,7 @@ SandboxedFunction.prototype.run = function (Arguments) {
                     if (context.functionChain.length > 0) {
                         context.stage = 'argument,';
                     } else {
+                        console.info('context',context,accessChain);
                         context.stage = '404';
                     }
                 } else if (token.value === ',' && context.stage === 'argument,') {
@@ -293,13 +309,13 @@ SandboxedFunction.prototype.__tokenize = function (jsCode) {
     const tokens = [];
     const regexPatterns = [
         {type: "keyword", regex: /\b(if|else|return|function|var|let|const|for|while|true|false|null)\b/},
+        {type: "comment", regex: /\/\/.*|\/\*[\s\S]*?\*\//},
         {type: "identifier", regex: /\b[a-zA-Z_][a-zA-Z0-9_]*\b/},
         {type: "number", regex: /\b\d+(\.\d+)?\b/},
         {type: "string", regex: /(["'])(?:(?!\1).)*\1/},
         {type: "operator", regex: /[+\-*/=<>!&|]+/},
         {type: "delimiter", regex: /[{}()\[\];,]/},
         {type: "whitespace", regex: /\s+/},
-        {type: "comment", regex: /\/\/.*|\/\*[\s\S]*?\*\//},
         {type: "DotAccess", regex: /\.\b[a-zA-Z_][a-zA-Z0-9_]*\b/},
         {type: "templateLiteral", regex: /`[\s\S]*?`/},
         {type: "BigInt", regex: /\b\d+n\b/},
@@ -358,10 +374,14 @@ return resolveReference(self[pop.replace(/^\./,'')], array);
 }*/
 const resolveReference = SandboxedFunction.prototype.__resolveReference = (function (baseObject, propertyChain) {
     let current = baseObject;
-    for (let prop of propertyChain.map(__StringOrSymbol)) {
+    if (!Array.isArray(propertyChain) || propertyChain.length === 0) {
+        throw new Error("Keys must be a non-empty array of strings.");
+    }
+    const chain = propertyChain.map(__StringOrSymbol);
+    for (let prop of chain) {
         const key = prop;
         if (isNULL_or_undefined(current) || !(key in current)) {
-            console.warn(`Property '${key}' does not exist on`, current);
+            console.warn(`Property '${key}' does not exist on ${chain.join('.')},`, current);
             //throw new ReferenceError(`Property '${key}' does not exist on ${current}`);
             return undefined;
         }
@@ -369,6 +389,35 @@ const resolveReference = SandboxedFunction.prototype.__resolveReference = (funct
     }
     return current;
 });
+
+const setProperty = SandboxedFunction.prototype.setProperty = (function (obj, keys, value) {
+    if (!Array.isArray(keys) || keys.length === 0) {
+        throw new Error("Keys must be a non-empty array of strings.");
+    }
+
+    let target = obj;
+    keys = keys.map(__StringOrSymbol);
+    // Traverse through the keys except the last one
+    for (let i = 0; i < keys.length - 1; i++) {
+        const key = keys[i];
+
+        /*// Ensure the key exists in the object, or create an empty object
+        if (typeof target[key] !== 'object' || target[key] === null) {
+            target[key] = {};}*/
+        const typeIs = typeOf(target[key], typeOf.undefinedIsNULL | typeOf.functionsAreObjects);
+        switch (typeIs) {
+            case"NULL":
+                throw new Error('null is found');
+        }
+
+        target = target[key];
+    }
+
+    // Set the value to the last key
+    const lastKey = keys[keys.length - 1];
+    target[lastKey] = value;
+});
+
 RegExp.prototype.toJSON = function () {
     return this.toString();
 };
