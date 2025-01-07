@@ -307,10 +307,42 @@ function calculateExpression(expressionArray) {
     if (index >= 0) {
         expressionArray[index] = this.calculateExpression(expressionArray[index]);
     }
-    expressionArray = make_2side_calculation(['**','%'], expressionArray);
+    expressionArray = make_2side_calculation(['**', '%'], expressionArray);
     // division and multiplecation
-    expressionArray = make_2side_calculation(['/','*'], expressionArray);
+    expressionArray = make_2side_calculation(['/', '*'], expressionArray);
     // addition and finally subtraction
     expressionArray = make_2side_calculation(['+', '-'], expressionArray);
     return expressionArray[0];
+}
+
+class SymbolRegistry {
+    constructor(desc) {
+        this.symbols = {};
+        if (desc !== undefined) {
+            this.symbols[String(desc)] = Symbol(String(desc));
+        }
+    }
+
+    register(desc) {
+        desc = String(desc); // Convert description to string
+        if (Object.hasOwn(this.symbols, desc)) {
+            return this.symbols[desc];
+        } else {
+
+            return this.symbols[desc] = Symbol(desc)
+        }
+    }
+
+    has(desc) {
+        return Object.hasOwn(this.symbols, String(desc));
+    }
+
+    unregister(desc) {
+        desc = String(desc);
+        if (this.has(desc)) {
+            delete this.symbols[desc];
+            return true;
+        }
+        return false;
+    }
 }

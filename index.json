@@ -1,0 +1,5 @@
+{
+    "$schema": "https://ant.ractoc.com/index.json/schema.json",
+    "name": "SandboxedFunction",
+    "description": "your things, but in the browser"
+}
