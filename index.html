@@ -3,15 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>Browser ECMAScript Environment</title>
-    <style>
-        body {
-            font-family: monospace;
-        }
-    </style>
-</head>
-<head>
-    <meta charset="UTF-8">
-    <title>Browser ECMAScript Environment</title>
     <link href="https://ant.ractoc.com/css/href.css" rel="stylesheet"/>
     <link href="https://ant.ractoc.com/home/nav.css" rel="stylesheet"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -23,8 +14,8 @@
             max-width: 650px;
         }
 
-        /*body{background-color:#6a35a6;}*/
         body {
+            font-family: monospace;
             background-color: #a68300;
         }
     </style>
@@ -78,14 +69,7 @@
 
     (function () {
         //function sane(){return 5;}
-        const code = `function sane(a, b){return a+b;}
-        function insane(f) {
-            f = Math.trunc(0.5);
-            if (f === 1) {
-                return 1;
-            }
-            return insane(f - 1);
-        }console.log(insane(5))`;
+        const code = `console.log(5)`;
         document.querySelector('pre').innerText += JSON.stringify(SandboxedFunction(code), null, 2);
         const hello = new SandboxedFunction(code);
         console.log(hello.run());

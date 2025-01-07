@@ -185,3 +185,131 @@ function loose_equal(...parameters) {
 function normalize_newlines(string) {
     return String(string).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 }
+
+function __array_append(array, ...rest) {
+    if (!Array.isArray(array)) array = [array];
+    array.push(...rest);
+    return array;
+}
+
+function parseNumber(string, mode = 0) {
+    const step1 = String(string).replace(/\s/g, '');
+    const Strict = Number(mode);
+    let sign = '+';
+    if (step1[0] === '-') sign = '-';
+    let step2;
+    if (/^[\-+]/.test(step1[0])) {
+        step2 = step1.slice(1);
+    } else {
+        step2 = step1;
+    }
+    let RTValue;// Handle "0"-prefixed numbers (potential octals)
+    if (/^0[0-7]*$/.test(step2)) {
+        const message = `"0"-prefixed octal literals are deprecated; use the "0o" prefix instead`;
+        if (Strict & parseNumber.disallowOctalsWithoutO) {
+            throw new SyntaxError(message);
+        }
+        console.warn(message);
+        RTValue = parseInt(`${sign}${step2}`, 8);
+    } else if (/^0[oO][0-7]+$/.test(step2)) {
+        RTValue = parseInt(`${sign}${step2}`, 8);
+    } else if (/^0[xX][0-9a-fA-F]+$/.test(step2)) {
+        // Handle hex literals
+        RTValue = parseInt(`${sign}${step2}`, 16);
+    } else if (/^0[bB][01]+$/.test(step2)) {
+        // Handle binary literals
+        RTValue = parseInt(`${sign}${step2}`, 2);
+    } else if (!(Strict & parseNumber.disallowElse)) {
+        // Handle standard decimal or invalid strings
+        RTValue = Number(`${sign}${step2}`);
+    }
+    if ((Strict & parseNumber.disallowNaN) && Number.isNaN(RTValue)) {
+        throw new SyntaxError(`${step1} cannot be converted to a Number`);
+    }
+    return Number(RTValue);
+}
+
+parseNumber.disallowElse = 4;
+parseNumber.disallowOctalsWithoutO = 1;
+parseNumber.disallowNaN = 2;
+
+function assert(statement, assertionId = 'unknown assertion') {
+    if (!Boolean(statement)) {
+        throw new Error(`(${String(assertionId)}) wasn't truthy`);
+    }
+    return statement;
+}
+
+function calculateExpression(expressionArray) {
+    function make_2side_calculation(operators, expressionArray_) {
+        let index, operator;
+        while ((index = expressionArray_.findIndex(function (element) {
+            const object = Object(element);
+            if (object['type'] === 'operator') {
+                const inArray = operators.includes(object['value']);
+                if (inArray) operator = object['value'];
+                return inArray;
+            } else {
+                return false;
+            }
+        })) >= 0) {
+            const H = expressionArray_[index];
+            const L = expressionArray_[index - 1];
+            const R = expressionArray_[index + 1];
+            assert(typeOf(L) === 'object', 'L is Object');
+            assert(typeOf(H) === 'object', 'H is Object');
+            assert(typeOf(R) === 'object', 'R is Object');
+            if (L.type === 'operator' || R.type === 'operator') {
+                throw new SyntaxError('Operator found where value was expected.');
+            }
+            if (H.type !== 'operator') {
+                console.error(L, H, R);
+                throw new SyntaxError('non-Operator found where Operator was expected.');
+            }
+            if (L.type === R.type && L.type === 'number') {
+                expressionArray_[index - 1] = {
+                    type: 'number', value: (function () {
+                        switch (operator) {
+                            case'/':
+                                return L['value'] / R['value'];
+                            case'*':
+                                return L['value'] * R['value'];
+                            case'+':
+                                return L['value'] + R['value'];
+                            case'-':
+                                return L['value'] - R['value'];
+                            case'%':
+                                return L['value'] & R['value'];
+                            default:
+                        }
+                        throw new Error(`operator "${operator}" not supported`);
+                    })(),
+                };
+                expressionArray_[index + 1] = undefined;
+                expressionArray_[index] = undefined;
+                expressionArray_ = expressionArray_.filter(function (element) {
+                    return element !== undefined;
+                });
+            } else {
+                throw new TypeError(`L.type{${L.type}}, R.type{${R.type}}; currently only numbers are supported`);
+            }
+        }
+        return expressionArray_.filter(function (element) {
+            return element !== undefined;
+        });
+    }
+
+    let index = expressionArray.findIndex(function (element) {
+        return Array.isArray(element);
+    });
+    if (index >= 0) {
+        expressionArray[index] = this.calculateExpression(expressionArray[index]);
+    }
+    // division comes FIRST
+    expressionArray = make_2side_calculation(['/'], expressionArray);
+    // then multiplecation
+    expressionArray = make_2side_calculation(['*'], expressionArray);
+    // addition and finally subtraction
+    expressionArray = make_2side_calculation(['+', '-'], expressionArray);
+    return expressionArray[0];
+}

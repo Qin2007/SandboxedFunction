@@ -8,13 +8,6 @@ function SandboxedFunction(javascript, globalObject) {
     }
     const functions = [];
     let context = __createFunctionTemplate();
-    const assert = function (statement, assertionId = 'unknown assertion') {
-        if (!Boolean(statement)) {
-            throw new Error(`(${String(assertionId)}) wasn't truthy`);
-        }
-        return statement;
-    }
-
     const defaultObject = {
         console: {
             log: function (...rest) {
@@ -140,167 +133,10 @@ function SandboxedFunction(javascript, globalObject) {
     for (const function1 of this.functions) {
         this.globalObject[function1.name] = function1;
     }
-
 }
 
-SandboxedFunction.prototype.run = function (Arguments) {
-    if (Arguments === undefined) {
-        Arguments = {length: 0, parameters: []};
-    }
+SandboxedFunction.prototype.run = function () {
 
-    function preformAssignment(context, accessChain) {
-        console.log(context, accessChain);
-    }
-
-    //let nested = 0;
-    let isStrict = null;
-    const accessChain = [];
-    const context = new Proxy({stage: '404', functionChain: [], foundReturn: false, setVar: [], unaryMinus: false},
-        {
-            set(target, p, newValue, receiver) {
-                if (p === 'stage') console.log('Reflect.set', newValue);
-                return Reflect.set(target, p, newValue);
-            }
-        });
-    for (const token of this.tokensNoFunction) {
-        if (token.type === "comment") continue;
-        if (isStrict === null && token.type === 'string' && /(["'])use strict\1/.test(token.value)) {
-            throw new Error('Strict mode not supported Yet');// isStrict = true;
-        } else {
-            isStrict = false;
-        }
-        if (context.foundReturn && ((token.type === 'delimiter' && token.type === ';')
-            || (token.value === 'whitespace' && /\n/.test(token.value)) || token.type === 'endOfFile')) {
-            return this.__resolveReference(this.globalObject, accessChain);
-        }
-        switch (token.type) {
-            case'keyword':
-                if (context.stage === '404') {
-                    if (token.value === 'return') {
-                        context.foundReturn = true;
-                        context.stage = 'expression';
-                    }
-                }
-                break;
-            case'identifier':
-            case'DotAccess':
-                accessChain.push(token.value);
-                console.log(188, context.stage);
-                if (context.stage === '404')
-                    context.stage = 'Id';
-                break;
-            case'number':
-                let n = parseNumber(token.value, parseNumber.disallowNaN);
-                n = context.unaryMinus ? -n : n;
-                if (context.foundReturn && context.stage === 'expression') {
-                    return n;
-                } else if (context.stage === 'argument') {
-                    context.functionChain[context.functionChain.length - 1].with.push(n);
-                    context.stage = 'argument,';
-                }
-                break;
-            case'BigInt':
-                let bigint = BigInt(token.value);
-                bigint = context.unaryMinus ? -bigint : bigint;
-                if (context.foundReturn && context.stage === 'expression') {
-                    return bigint;
-                } else if (context.stage === 'argument') {
-                    context.functionChain[context.functionChain.length - 1].with.push(bigint);
-                    context.stage = 'argument,';
-                }
-                break;
-            case'string':
-                if (context.stage === 'argument') {
-                    context.functionChain[context.functionChain.length - 1].with.push(token.value);
-                    context.stage = 'argument,';
-                } else if (context.foundReturn) {
-                    return token.value;
-                }
-                break;
-            case'operator':
-                if (token.value === '=' && context.stage === 'Id') {
-                    context.setVar.push([...accessChain]);
-                    context.stage = 'expression';
-                    accessChain.length = 0;
-                } else if (token.value === '-') {
-                    context.unaryMinus = true;
-                }
-                break;
-            case'delimiter':
-                if (token.value === '(') {
-                    if ('argument argument, Id expression'.split(' ').includes(context.stage)) {
-                        console.log('accessChain', accessChain, context.stage);
-                        context.functionChain.push({'accessTo': [...accessChain], with: []});
-                        context.stage = 'argument';
-                        accessChain.length = 0;
-                    }
-                } else if (token.value === ';' &&
-                    'argument argument, Id expression'.split(' ').includes(context.stage)) {
-                    if (context.stage === 'expression') {
-                        preformAssignment(context, accessChain);
-                    }
-                } else if (token.value === ';') {
-                    throw new Error(JSON.stringify({context, accessChain}));
-                } else if (token.value === ')' && 'argument argument,'.split(' ').includes(context.stage)) {
-                    const theFunction = context.functionChain.pop();//[context.functionChain.length - 1];
-                    const theActualFunction = this.__resolveReference(this.globalObject, theFunction.accessTo);
-                    /*console.log(
-                        this.__resolveReference(this.globalObject,
-                            theFunction.accessTo),
-                        theFunction.accessTo, theFunction.with);*/
-                    const type = typeOf(theActualFunction);
-                    if (type === 'undefined' || type === 'NULL') {
-                        console.error(theFunction, theActualFunction);
-                        throw new TypeError(`do not call undefined, you attempted to call (${theFunction.accessTo.join('.')})`);
-                    } else if ((type === 'function' || theActualFunction.constructor === __SandBoxedBuiltInFunction)
-                        || (type === 'object' && (SandboxedFunction.prototype.__call in theActualFunction))) {
-                        let returnValue = undefined;
-                        if (theActualFunction.constructor === __SandBoxedBuiltInFunction) {
-                            returnValue = theActualFunction.callMe({
-                                length: theFunction.with.length,
-                                parameters: theFunction.with,
-                            });
-                        } else if (type === 'function') {
-                            returnValue = theActualFunction(...theFunction.with);
-                        } else if (type === 'object') {
-                            if (SandboxedFunction.prototype.__call in theActualFunction) {
-                                returnValue = theActualFunction[SandboxedFunction.prototype.__call](...theFunction.with);
-                            } else if (SandboxedFunction.prototype.__callsp in theActualFunction) {
-                                returnValue = theActualFunction[SandboxedFunction.prototype.__callsp]({
-                                    length: [...theFunction.with].length, parameters: [...theFunction.with],
-                                });
-                            }
-                        }
-                        const returnIn = context.functionChain[context.functionChain.length - 1];
-                        if (returnIn !== undefined && returnIn.length > 0) {
-                            returnIn.with.push(returnValue);
-                        } else if (context.foundReturn) {
-                            return returnValue;
-                        }
-                    } else {
-                        throw new TypeError(`${type} is not callable (${theActualFunction})`);
-                    }
-                    if (context.functionChain.length > 0) {
-                        context.stage = 'argument,';
-                    } else {
-                        console.info('context',context,accessChain);
-                        context.stage = '404';
-                    }
-                } else if (token.value === ',' && context.stage === 'argument,') {
-                    context.stage = 'argument';
-                }
-                break;
-            case'whitespace':
-                if (context.foundReturn && /\n/.test(token.value)) {
-                    console.warn('\\n before return found');
-                    return undefined;
-                }
-                break;
-            case'templateLiteral':
-                break;
-        }
-    }
-    return undefined;
 };
 SandboxedFunction.prototype.__undef = Symbol('__undef');
 SandboxedFunction.prototype.__callsp = Symbol('spcall');
@@ -448,11 +284,6 @@ __SandBoxedBuiltInFunction[Symbol.toStringTag] = function () {
     return 'SandBoxedFunctionBuiltIn';
 };
 
-function __array_append(array, ...rest) {
-    array.push(...rest);
-    return array;
-}
-
 function __createFunctionTemplate() {
     return {
         stage: '404',
@@ -463,44 +294,3 @@ function __createFunctionTemplate() {
         source: ['function'],
     };
 }
-
-function parseNumber(string, mode = 0) {
-    const step1 = String(string).replace(/\s/g, '');
-    const Strict = Number(mode);
-    let sign = '+';
-    if (step1[0] === '-') sign = '-';
-    let step2;
-    if (/^[\-+]/.test(step1[0])) {
-        step2 = step1.slice(1);
-    } else {
-        step2 = step1;
-    }
-    let RTValue;// Handle "0"-prefixed numbers (potential octals)
-    if (/^0[0-7]*$/.test(step2)) {
-        const message = `"0"-prefixed octal literals are deprecated; use the "0o" prefix instead`;
-        if (Strict & parseNumber.disallowOctalsWithoutO) {
-            throw new SyntaxError(message);
-        }
-        console.warn(message);
-        RTValue = parseInt(`${sign}${step2}`, 8);
-    } else if (/^0[oO][0-7]+$/.test(step2)) {
-        RTValue = parseInt(`${sign}${step2}`, 8);
-    } else if (/^0[xX][0-9a-fA-F]+$/.test(step2)) {
-        // Handle hex literals
-        RTValue = parseInt(`${sign}${step2}`, 16);
-    } else if (/^0[bB][01]+$/.test(step2)) {
-        // Handle binary literals
-        RTValue = parseInt(`${sign}${step2}`, 2);
-    } else if (!(Strict & parseNumber.disallowElse)) {
-        // Handle standard decimal or invalid strings
-        RTValue = Number(`${sign}${step2}`);
-    }
-    if ((Strict & parseNumber.disallowNaN) && Number.isNaN(RTValue)) {
-        throw new SyntaxError(`${step1} cannot be converted to a Number`);
-    }
-    return Number(RTValue);
-}
-
-parseNumber.disallowElse = 4;
-parseNumber.disallowOctalsWithoutO = 1;
-parseNumber.disallowNaN = 2;

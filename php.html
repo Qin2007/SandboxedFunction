@@ -2,16 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Browser ECMAScript Environment</title>
-    <style>
-        body {
-            font-family: monospace;
-        }
-    </style>
-</head>
-<head>
-    <meta charset="UTF-8">
-    <title>Browser ECMAScript Environment</title>
+    <title>Browser PHP Environment</title>
     <link href="https://ant.ractoc.com/css/href.css" rel="stylesheet"/>
     <link href="https://ant.ractoc.com/home/nav.css" rel="stylesheet"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -24,6 +15,7 @@
         }
 
         body {
+            font-family: monospace;
             background-color: #6a35a6;
         }
     </style>
@@ -55,14 +47,22 @@
     </div>
 </nav>
 <div class="divs nav-home">
-    <h1>Browser ECMAScript Environment</h1>
+    <h1>Browser PHP Environment</h1>
     <p>open the console to test it out</p>
-    <script src="javascript.js"></script>
     <script src="deepproxy.js"></script>
     <script src="utils.js"></script>
-    <script src="BigNumber.js"
-    ></script>
-    <script src="toJSON.js"
-    ></script>
+    <script src="php.js"></script>
     <pre></pre>
 </div>
+<script>
+    (function () {
+        const code = `Hello<?= (5 + 5) * 7 + 8;?>`;
+        const hello = new SandboxedFunctionPHP(code);
+        const result = hello.run();
+        console.log(result);
+        document.querySelector('pre').innerText += result + '\n\n';
+        document.querySelector('pre').innerText += JSON.stringify(hello, null, 2);
+    })();
+</script>
+</body>
+</html>
