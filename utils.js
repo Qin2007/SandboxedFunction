@@ -274,6 +274,8 @@ function calculateExpression(expressionArray) {
                                 return L['value'] / R['value'];
                             case'*':
                                 return L['value'] * R['value'];
+                            case'**':
+                                return L['value'] ** R['value'];
                             case'+':
                                 return L['value'] + R['value'];
                             case'-':
@@ -305,10 +307,9 @@ function calculateExpression(expressionArray) {
     if (index >= 0) {
         expressionArray[index] = this.calculateExpression(expressionArray[index]);
     }
-    // division comes FIRST
-    expressionArray = make_2side_calculation(['/'], expressionArray);
-    // then multiplecation
-    expressionArray = make_2side_calculation(['*'], expressionArray);
+    expressionArray = make_2side_calculation(['**','%'], expressionArray);
+    // division and multiplecation
+    expressionArray = make_2side_calculation(['/','*'], expressionArray);
     // addition and finally subtraction
     expressionArray = make_2side_calculation(['+', '-'], expressionArray);
     return expressionArray[0];

@@ -142,43 +142,6 @@ SandboxedFunction.prototype.__undef = Symbol('__undef');
 SandboxedFunction.prototype.__callsp = Symbol('spcall');
 SandboxedFunction.prototype.__call = Symbol('call');
 SandboxedFunction.prototype.__tokenize = function (jsCode) {
-    const tokens = [];
-    const regexPatterns = [
-        {type: "keyword", regex: /\b(if|else|return|function|var|let|const|for|while|true|false|null)\b/},
-        {type: "comment", regex: /\/\/.*|\/\*[\s\S]*?\*\//},
-        {type: "identifier", regex: /\b[a-zA-Z_][a-zA-Z0-9_]*\b/},
-        {type: "number", regex: /\b\d+(\.\d+)?\b/},
-        {type: "string", regex: /(["'])(?:(?!\1).)*\1/},
-        {type: "operator", regex: /[+\-*/=<>!&|]+/},
-        {type: "delimiter", regex: /[{}()\[\];,]/},
-        {type: "whitespace", regex: /\s+/},
-        {type: "DotAccess", regex: /\.\b[a-zA-Z_][a-zA-Z0-9_]*\b/},
-        {type: "templateLiteral", regex: /`[\s\S]*?`/},
-        {type: "BigInt", regex: /\b\d+n\b/},
-    ];
-    jsCode = normalize_newlines(String(jsCode));
-    while (jsCode.length > 0) {
-        let match = null;
-        for (const {type, regex} of regexPatterns) {
-            const result = regex.exec(jsCode);
-            if (result && result.index === 0) {
-                match = {type, value: result[0]};
-                break;
-            }
-        }
-        if (!match) {
-            throw new Error(`Unrecognized token at: \`\`\`${jsCode.slice(0, 10)}\`\`\``);
-        }
-        let offset = 0;
-        /*if (match.type !== "whitespace" && match.type !== "comment") {tokens.push(match);}*/
-        if (match.type === 'DotAccess') {
-            match.value = String(match.value).replace(/^\./, '');
-            offset++;
-        }
-        tokens.push(match);
-        jsCode = jsCode.slice(match.value.length + offset);
-    }
-    return __array_append(tokens, {type: 'endOfFile', value: 'EOF'});
 };
 
 SandboxedFunction[Symbol.toStringTag] = function () {

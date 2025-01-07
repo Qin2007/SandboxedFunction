@@ -42,7 +42,7 @@ SandboxedFunctionPHP.prototype.run = function () {
                 }
                 break;
             case"string":
-                if (context.stage === 'expression' && context.expressionFor === 'echo') {
+                if (context.stage === 'expression') {
                     operations.push({type: 'string', value: token.value.slice(1, -1)});
                 }
                 break;
@@ -73,11 +73,13 @@ SandboxedFunctionPHP.prototype.run = function () {
                 }
                 break;
             case "semicolon":
-                const context_operations = JSON.stringify(context.operations);
                 const result = this.calculateExpression(context.operations);
-                context.print(JSON.stringify({
-                    context_operations: JSON.parse(context_operations), result
-                }, null, 2));
+                // context.print(JSON.stringify({
+                //     context_operations: JSON.parse(context_operations), result
+                // }, null, 2));
+                if (context.stage === 'expression' && context.expressionFor === 'echo') {
+                    context.print(result.value);
+                }
                 break;
             default:
         }
