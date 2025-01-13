@@ -72,3 +72,17 @@ function Counter(name) {
 Counter.prototype.countUp = (function () {
     return ++this.count;
 });
+
+function toStringPHP(mixed) {
+    switch (mixed) {
+        case null:
+        case false:
+        case undefined:
+            return '';
+        case true:
+            return '1';
+        default:
+            if (Array.isArray(mixed)) return mixed;
+            return String(mixed);
+    }
+}

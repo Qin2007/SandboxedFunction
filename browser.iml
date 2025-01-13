@@ -8,7 +8,6 @@
     <orderEntry type="library" name="nav" level="application" />
     <orderEntry type="library" name="href" level="application" />
     <orderEntry type="library" name="regexical" level="application" />
-    <orderEntry type="library" name="typeOf" level="application" />
     <orderEntry type="library" name="DateApi" level="application" />
   </component>
 </module>

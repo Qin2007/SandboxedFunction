@@ -16,7 +16,7 @@ function SandboxedFunctionPHP(php, insertions) {
 SandboxedFunctionPHP.prototype.run = function () {
     let tokenIndex = 0;
     const context = {
-        outputBuffers: [new __ObjectBufferPHP()],
+        outputBuffers: [new ObjectBufferPHP()],
         outPutString: [],
         stage: '404', expressionFor: null,
         operations: [], print: function (string) {
@@ -155,15 +155,3 @@ SandboxedFunctionPHP.__tokenize = function (phpCode) {
     return tokens;
 };
 SandboxedFunctionPHP.prototype.calculateExpression = calculateExpression;
-
-function __ObjectBufferPHP() {
-    this.array = [];
-}
-
-__ObjectBufferPHP.prototype.append = function (string) {
-    this.array.push(String(string));
-};
-
-__ObjectBufferPHP.prototype.toString = function () {
-    return this.array.join('');
-};

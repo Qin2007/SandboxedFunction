@@ -63,12 +63,12 @@ function typeOf(o, mode = 0) {
     if (o === null) {
         return (!(m & typeOf.NULL_IsObject)) ? "NULL" : 'object';
     }
-    if (m & typeOf.functionsAreObjects) {
+    if ((m & typeOf.functionsAreObjects) === typeOf.functionsAreObjects) {
         if (t === "function") {
             return "object";
         }
     }
-    if (m & typeOf.checkArraySeperately) {
+    if ((m & typeOf.checkArraySeperately) === typeOf.checkArraySeperately) {
         if (Array.isArray(o)) {
             return "Array";
         }
@@ -240,7 +240,31 @@ function assert(statement, assertionId = 'unknown assertion') {
     return statement;
 }
 
-function calculateExpression(expressionArray) {
+function calculateExpression(expressionArray, throwIfEmpty = 0, selfObject = undefined) {
+    if (!Array.isArray(expressionArray)) {
+        throw new TypeError('expressionArray must be an array');
+    }
+    if (!(expressionArray.length > 0)) {
+        if (throwIfEmpty & calculateExpression.throwIfEmpty) {
+            throw new Error('calculateExpression was send an empty expressionArray');
+        } else if (throwIfEmpty & calculateExpression.warnIfEmpty) {
+            console.warn('calculateExpression was send an empty expressionArray');
+        }// if (throwIfEmpty & calculateExpression.undefinedIfEmpty) // do nothing
+        return {type: 'undefined', 'value': undefined};
+    } else if (!expressionArray.every(function (element) {
+        return element !== undefined && Object(element)['type'] !== 'undefined';
+    })) {
+        if (throwIfEmpty & calculateExpression.throwIfEmpty) {
+            throw new Error('calculateExpression was send an empty (or an array with only undefined) expressionArray');
+        } else if (throwIfEmpty & calculateExpression.warnIfEmpty) {
+            console.warn('calculateExpression was send an empty (or an array with only undefined) expressionArray');
+        }
+        if (!(throwIfEmpty & calculateExpression.allowOnlyUndefined)) {
+            return {type: 'undefined', 'value': undefined};
+        }
+    }
+
+
     function make_2side_calculation(operators, expressionArray_) {
         let index, operator;
         while ((index = expressionArray_.findIndex(function (element) {
@@ -301,19 +325,63 @@ function calculateExpression(expressionArray) {
         });
     }
 
-    let index = expressionArray.findIndex(function (element) {
+    let index;
+    while ((index = expressionArray.findIndex(function (element) {
         return Array.isArray(element);
-    });
-    if (index >= 0) {
-        expressionArray[index] = this.calculateExpression(expressionArray[index]);
+    })) >= 0) {
+        expressionArray[index] = this.calculateExpression(expressionArray[index], throwIfEmpty);
     }
+    // functionCalls.js
+    while ((index = expressionArray.findIndex(function (element) {
+        return Object(element)['type'] === 'functionCall';
+    })) >= 0) {
+        let theActualFunction = expressionArray[index];
+        if (typeOf(theActualFunction, typeOf.functionsAreObjects) === 'object') {
+            theActualFunction = theActualFunction.value;//.target;
+            const parameters = expressionArray[index].parameters;
+            const theArguments = {length: parameters.length, parameters: parameters};
+            const insertion = theArguments.length === 0 ? {length: 0, parameters: []} : {
+                parameters: [calculateExpression([...expressionArray[index].parameters], throwIfEmpty)],
+            };
+            insertion.length = insertion.parameters.length;
+            if ((typeof SandboxedFunction) !== 'undefined' && theActualFunction instanceof SandboxedFunction) {
+                throw new TypeError('SandboxedFunction not supported');
+            } else if ((typeof SandboxedFunctionPHP) !== 'undefined' && theActualFunction instanceof SandboxedFunctionPHP) {
+                throw new TypeError('SandboxedFunctionPHP not supported');
+            } else if ((typeof __SandBoxedBuiltInFunction) !== 'undefined' && (theActualFunction instanceof __SandBoxedBuiltInFunction)) {
+                expressionArray[index] = theActualFunction.callMe(insertion, selfObject);
+            } else if (theActualFunction instanceof Function) {
+                expressionArray[index] = theActualFunction(insertion, selfObject);
+            } else {
+                console.error(theActualFunction);
+                throw new Error(`${Object(theActualFunction).constructor.name} is not a function`);
+            }
+        } else {
+            console.error(theActualFunction);
+            throw new Error(`expressionArray[${index}] is not a present`);
+        }
+    }
+    // expressionArray = expressionArray.filter(function (element) {return element !== undefined && Object(element)['type'] !== 'undefined';});
+    // powers and modulos
     expressionArray = make_2side_calculation(['**', '%'], expressionArray);
     // division and multiplecation
     expressionArray = make_2side_calculation(['/', '*'], expressionArray);
     // addition and finally subtraction
     expressionArray = make_2side_calculation(['+', '-'], expressionArray);
-    return expressionArray[0];
+    expressionArray = expressionArray.filter(function (element) {
+        return Object(element)['type'] !== 'accessChain';
+    });
+    if (expressionArray.length > 0) {
+        return expressionArray[0];
+    } else {
+        return {type: 'undefined', 'value': undefined};
+    }
 }
+
+calculateExpression.throwIfEmpty = 1;
+calculateExpression.warnIfEmpty = 2;
+calculateExpression.undefinedIfEmpty = 0;
+calculateExpression.allowOnlyUndefined = 4;
 
 class SymbolRegistry {
     constructor(desc) {
@@ -328,7 +396,6 @@ class SymbolRegistry {
         if (Object.hasOwn(this.symbols, desc)) {
             return this.symbols[desc];
         } else {
-
             return this.symbols[desc] = Symbol(desc)
         }
     }
@@ -346,3 +413,84 @@ class SymbolRegistry {
         return false;
     }
 }
+
+function ObjectBufferPHP() {
+    if (!new.target) {
+        throw new Error('__ObjectBufferPHP must be invoked with \'new\'');
+    }
+    this.array = [];
+    this.bufferListeners = [];
+}
+
+ObjectBufferPHP.prototype.append = function (string) {
+    const buffer = String(string);
+    this.array.push(buffer);
+    for (const bufferElement of this.bufferListeners) {
+        bufferElement(buffer);
+    }
+};
+
+ObjectBufferPHP.prototype.toString = function () {
+    return this.array.join('\n\n');
+};
+ObjectBufferPHP.prototype.addBufferListener = function (listener) {
+    this.bufferListeners.push(listener);
+    return this;
+};
+ObjectBufferPHP.prototype.removeBufferListener = function (listener) {
+    let found = false;
+    this.bufferListeners = this.bufferListeners.filter(function (function1) {
+        return found = (function1 !== listener) || found;
+    });
+    return found;
+};
+/*function __StringOrSymbol(any) {
+    if ((typeof any) === 'symbol') {
+        return any;
+    }
+    return String(any);
+}
+
+const resolveReference = function (baseObject, propertyChain) {
+    let current = baseObject;
+    if (!Array.isArray(propertyChain) || propertyChain.length === 0) {
+        throw new Error("Keys must be a non-empty array of strings.");
+    }
+    const chain = propertyChain.map(__StringOrSymbol);
+    for (let prop of chain) {
+        const key = prop;
+        if (isNULL_or_undefined(current) || !(key in current)) {
+            console.warn(`Property '${key}' does not exist on ${chain.join('.')},`, current);
+            //throw new ReferenceError(`Property '${key}' does not exist on ${current}`);
+            return undefined;
+        }
+        current = current[key];
+    }
+    return current;
+};
+
+const setProperty = function (obj, keys, value) {
+    if (!Array.isArray(keys) || keys.length === 0) {
+        throw new Error("Keys must be a non-empty array of strings.");
+    }
+
+    let target = obj;
+    keys = keys.map(__StringOrSymbol);
+    // Traverse through the keys except the last one
+    for (let i = 0; i < keys.length - 1; i++) {
+        const key = keys[i];
+
+        // Ensure the key exists in the object, or create an empty object
+        const typeIs = typeOf(target[key], typeOf.undefinedIsNULL | typeOf.functionsAreObjects);
+        switch (typeIs) {
+            case"NULL":
+                throw new Error('null is found');
+        }
+
+        target = target[key];
+    }
+
+    // Set the value to the last key
+    const lastKey = keys[keys.length - 1];
+    target[lastKey] = value;
+};*/
