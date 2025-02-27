@@ -8,12 +8,12 @@ create_head('Browser ECMAScript Environment', [
     'base' => '/browser/', 'maxWidth' => '600px',
 ], [
 ], [
-        ANTNavHome(),
-        new ANTNavOption('/browser/', '/dollmaker1/endpoint.php?preset=Bee',
-            'javascript ANT', '#a68300', '#fff100', true),
-        new ANTNavOption('php.php', '/dollmaker1/endpoint.php?preset=Magnata',
-            'PHP ANT (WIP)', '#a68300', '#fff100'),]
-); ?>
+    ANTNavHome(),
+    new ANTNavOption('/browser/', '/dollmaker1/endpoint.php?preset=Bee',
+        'javascript ANT', '#a68300', '#fff100', true),
+    new ANTNavOption('php.php', '/dollmaker1/endpoint.php?preset=Magnata',
+        'PHP ANT (WIP)', '#a68300', '#fff100'),
+]) ?>
 <div class="divs nav-home">
     <div>
         <h1>Browser ECMAScript Environment</h1>
@@ -57,6 +57,8 @@ create_head('Browser ECMAScript Environment', [
             echo "<li>$item[0] ($h)$n";
         } ?></ol>
 </div>
+<script src="bytes.js"
+></script>
 <script>
     function getFrom(property, array, separator = '') {
         const result = [];
@@ -69,20 +71,26 @@ create_head('Browser ECMAScript Environment', [
     const indexed = document.getElementById('Sandboxed-indexed');
     const buffer = document.querySelector('pre>output');
 
+    buffer.innerText = '<output';
+    buffer.innerText += ' here>';
+
     function sandboxedfunction() {
-        buffer.innerText = '';
         const hello = new SandboxedFunction(indexed.value);
-        buffer.innerText += '\n\n' + JSON.stringify(hello.addBufferListener(function (v1) {
-            buffer.innerText += v1 + '\n\n';
-        }).run(), function (key, value) {
-            switch (typeOf(value, typeOf.functionsAreObjects)) {
-                case "undefined":
-                    return "undefined";
-                case "function":
-                    return value.toString();
-            }
-            return value;
-        }, 2);
+        try {
+            buffer.innerText += '\n\n' + JSON.stringify(hello.addBufferListener(function (v1) {
+                buffer.innerText += v1 + '\n\n';
+            }).run(), function (key, value) {
+                switch (typeOf(value, typeOf.functionsAreObjects)) {
+                    case "undefined":
+                        return "undefined";
+                    case "function":
+                        return value.toString();
+                }
+                return value;
+            }, 2);
+        } catch (e) {
+            buffer.innerText += '\n\n' + e.toString();
+        }
     }
 
     /*(function () {const hello = new SandboxedFunction(code);document.querySelector('pre').innerText += JSON.stringify({

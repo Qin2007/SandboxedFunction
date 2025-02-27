@@ -5,6 +5,120 @@ function SandboxedFunction(javascript, globalObject) {
         __tokens = javascript.tokens;
         thisContext = javascript.thisContext;
     } else {
+        __tokens = SandboxedFunction.__tokenize(javascript);
+    }
+    if (!new.target) {
+        return;
+    }
+    this.__tokens = __tokens;
+}
+
+SandboxedFunction.__tokenize = function (javascript) {
+    let index = 0, line = 0, column = 0,
+        jsCode = (function (string) {
+            return String(string).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        })(String(javascript));
+    const tokens = [];
+    const regexPatterns = [
+        {type: "keyword", regex: /\b(?:if|else|return|function|var|let|const|for|while|true|false|null)\b/},
+        {type: "comment", regex: /\/\/.*|\/\*[\s\S]*?\*\//},
+        {type: "identifier", regex: /\b[a-zA-Z_][a-zA-Z0-9_]*\b/},
+        {type: "number", regex: /\b\d+(\.\d+)?\b/},
+        {type: "operator", regex: /[+\-*/=<>!&|]+/},
+        {type: "delimiter", regex: /[{}\[\]();,]/},
+        {type: "whitespace", regex: /\s+/},
+        {type: "DotAccess", regex: /\.\b[a-zA-Z_][a-zA-Z0-9_]*\b/},
+        {type: "BigInt", regex: /\b\d+n\b/},
+    ];
+    while (jsCode.length > 0) {
+        let match = null;
+        const regexpArray = jsCode.match(/^(['"`\/])/);
+        if (regexpArray) {
+            let length = 0, backslashed = false;
+            const array = [], delimiter = regexpArray[1];
+            for (const strx of jsCode.slice(1)) {
+                if (++length > jsCode.length) {
+                    throw new Error(`Unended String`);
+                }
+
+                if (/^[\\'"`\/]$/.test(strx)) {
+                    if (strx === delimiter && !backslashed) {
+                        break;
+                    } else if (strx === '\\') {
+                        if (backslashed) {
+                            array.push(strx);
+                            backslashed = false;
+                        } else {
+                            backslashed = true;
+                        }
+                    } else {
+                        array.push(strx);
+                    }
+                } else if (strx === '\n' || strx === '\r') {
+                    if (delimiter === '\'' || delimiter === "\"") {
+                        throw new Error('string literal contains an unescaped line break');
+                    } else {
+                        array.push(strx);
+                    }
+                } else {
+                    array.push(strx);
+                }
+            }
+            if (length === 0) {
+                throw new Error(`0-length String`);
+            }
+            jsCode = jsCode.slice(length);
+            const value = array.join('');
+            if (delimiter === '\'' || delimiter === "\"") {
+                match = {type: 'string', value, delimiter};
+            } else if (delimiter === '/') {
+                match = {type: 'RegExp', value, delimiter, jsCode};
+            } else if (delimiter === '`') {
+                throw new Error(`Template literals not supported`);
+                // match = {type: 'TemplateLiteral', value, delimiter};
+            } else {
+                throw new Error(`Unknown Demiliter At: \`\`\`${jsCode.slice(0, 10)}\`\`\``);
+            }
+        } else {
+            for (const {type, regex} of regexPatterns) {
+                const result = regex.exec(jsCode);
+                if (result && result.index === 0) {
+                    match = {type, value: result[0]};
+                    break;
+                }
+            }
+        }
+        if (!match) {
+            throw new Error(`Unrecognized token at: \`\`\`${jsCode.slice(0, 10)}\`\`\``);
+        }
+        let offset = 0, string = String(match.value);
+        index += string.length;
+        if (/\n/.test(string)) {
+            line += 1;
+            column = 0;
+            //match = Object.assign({}, match, {index, line, column});
+            column += string.replace(/.+\n/, '').length;
+        } else {
+            column += string.length;
+            //match = Object.assign({}, match, {index, line, column});
+        }
+        /*if (match.type !== "whitespace" && match.type !== "comment") {tokens.push(match);}*/
+        if (match.type === 'DotAccess') {
+            match.value = String(match.value).replace(/^\./, '');
+            offset++;
+        }
+        tokens.push(match);
+        jsCode = jsCode.slice(match.value.length + offset);
+    }
+    //tokens.push({type: 'delimiter', value: ';'});
+    return tokens;
+};
+/*function SandboxedFunction(javascript, globalObject) {
+    let __tokens, thisContext;
+    if ('tokens' in Object(javascript) && 'thisContext' in Object(javascript)) {
+        __tokens = javascript.tokens;
+        thisContext = javascript.thisContext;
+    } else {
         __tokens = SandboxedFunction.prototype.__tokenize(javascript);
     }
 
@@ -275,47 +389,46 @@ SandboxedFunction.prototype.run = function () {
 };
 SandboxedFunction.prototype.__undef = Symbol('__undef');
 SandboxedFunction.prototype.__callsp = Symbol('spcall');
-SandboxedFunction.prototype.__call = Symbol('call');
-SandboxedFunction.prototype.__tokenize = function (jsCode) {
-    const tokens = [];
-    const regexPatterns = [
-        {type: "keyword", regex: /\b(if|else|return|function|var|let|const|for|while|true|false|null)\b/},
-        {type: "comment", regex: /\/\/.*|\/\*[\s\S]*?\*\//},
-        {type: "identifier", regex: /\b[a-zA-Z_][a-zA-Z0-9_]*\b/},
-        {type: "number", regex: /\b\d+(\.\d+)?\b/},
-        {type: "string", regex: /(["'])(?:(?!\1).)*\1/},
-        {type: "operator", regex: /[+\-*/=<>!&|]+/},
-        {type: "delimiter", regex: /[{}\[\]();,]/},
-        {type: "whitespace", regex: /\s+/},
-        {type: "DotAccess", regex: /\.\b[a-zA-Z_][a-zA-Z0-9_]*\b/},
-        {type: "templateLiteral", regex: /`[^`]*`/},
-        {type: "BigInt", regex: /\b\d+n\b/},
-    ];
-    jsCode = normalize_newlines(String(jsCode));
-    while (jsCode.length > 0) {
-        let match = null;
-        for (const {type, regex} of regexPatterns) {
-            const result = regex.exec(jsCode);
-            if (result && result.index === 0) {
-                match = {type, value: result[0]};
-                break;
-            }
-        }
-        if (!match) {
-            throw new Error(`Unrecognized token at: \`\`\`${jsCode.slice(0, 10)}\`\`\``);
-        }
-        let offset = 0;
-        /*if (match.type !== "whitespace" && match.type !== "comment") {tokens.push(match);}*/
-        if (match.type === 'DotAccess') {
-            match.value = String(match.value).replace(/^\./, '');
-            offset++;
-        }
-        tokens.push(match);
-        jsCode = jsCode.slice(match.value.length + offset);
-    }
-    return __array_append(tokens, {type: 'delimiter', value: ';'});
-};
-SandboxedFunction.prototype.addBufferListener = function (function1) {
+SandboxedFunction.prototype.__call = Symbol('call');*/
+// SandboxedFunction.prototype.__tokenize = function (jsCode) {
+//     const tokens = [];
+//     const regexPatterns = [
+//         {type: "keyword", regex: /\b(if|else|return|function|var|let|const|for|while|true|false|null)\b/},
+//         {type: "comment", regex: /\/\/.*|\/\*[\s\S]*?\*\//},
+//         {type: "identifier", regex: /\b[a-zA-Z_][a-zA-Z0-9_]*\b/},
+//         {type: "number", regex: /\b\d+(\.\d+)?\b/},
+//         {type: "string", regex: /(["'])(?:(?!\1).)*\1/},
+//         {type: "operator", regex: /[+\-*/=<>!&|]+/},
+//         {type: "delimiter", regex: /[{}\[\]();,]/},
+//         {type: "whitespace", regex: /\s+/},
+//         {type: "DotAccess", regex: /\.\b[a-zA-Z_][a-zA-Z0-9_]*\b/},
+//         {type: "templateLiteral", regex: /`[^`]*`/},
+//         {type: "BigInt", regex: /\b\d+n\b/},
+//     ];
+//     jsCode = normalize_newlines(String(jsCode));
+//     while (jsCode.length > 0) {
+//         let match = null;
+//         for (const {type, regex} of regexPatterns) {
+//             const result = regex.exec(jsCode);
+//             if (result && result.index === 0) {
+//                 match = {type, value: result[0]};
+//                 break;
+//             }
+//         }
+//         if (!match) {
+//             throw new Error(`Unrecognized token at: \`\`\`${jsCode.slice(0, 10)}\`\`\``);
+//         }
+//         let offset = 0;
+//         /*if (match.type !== "whitespace" && match.type !== "comment") {tokens.push(match);}*/
+//         if (match.type === 'DotAccess') {
+//             match.value = String(match.value).replace(/^\./, '');
+//             offset++;
+//         }
+//         tokens.push(match);
+//         jsCode = jsCode.slice(match.value.length + offset);
+//     }
+//     return __array_append(tokens, {type: 'delimiter', value: ';'});};
+/*SandboxedFunction.prototype.addBufferListener = function (function1) {
     this.thisContext.consoleBuffer.addBufferListener(function1);
     return this;
 };
@@ -430,4 +543,9 @@ function __createFunctionTemplate() {
         body: [],
         source: ['function'],
     };
+}*/
+`function hypertext() {
+    return "hello";
 }
+return hypertext();`
+console.log(JSON.stringify(new SandboxedFunction(`console.log(/^/gi);`), null, 2));

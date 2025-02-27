@@ -30,7 +30,6 @@ function isPrimitive(o) {
             return true;
     }
 }
-
 function toPrimitive(O) {
     if (isPrimitive(O)) return O;
     let x = Object(O);
@@ -111,67 +110,68 @@ typeOf.identifyRegExp = 8;
 typeOf.identifyDate = 16;
 typeOf.NAN_IS_NAN = 4;
 
-function loose_equal(...parameters) {
-    if (parameters.length === 0) throw new Error('loose_equal got zero parameters, what do you want to compare?');
-    if (parameters.length !== 2) throw new Error(`loose_equal expects exactly 2 arguments, but received ${parameters.length}`);
-    const a = parameters[0];
-    const b = parameters[1];
+function loose_equal(a, b) {
+    //(...parameters)
+    const parameters_length = arguments.length;
+    if (parameters_length === 0) throw new Error('loose_equal got zero parameters, what do you want to compare?');
+    if (parameters_length !== 2) throw new Error(`loose_equal expects exactly 2 arguments, but received ${parameters_length}`);
+    // const a = parameters[0];
+    // const b = parameters[1];
     if (Number.isNaN(a) || Number.isNaN(b)) {
         // NaN must be not equal to anything. saves time
         return false;
     }
     if (typeOf(a) === typeOf(b)) {
         return a === b;
-    } else if ((a === undefined || a === null) && (b === undefined || b === null)) {
+    } else if ((a === undefined || a === null) === (b === undefined || b === null)) {
         return true; // Both are undefined or null
     } else if ((a === undefined || a === null) !== (b === undefined || b === null)) {
         return false; // One is undefined or null, but the other is not
     } else {
-        let primitiveA = a;
-        let primitiveB = b;
+        let primitiveA = a, primitiveB = b;
         if (!isPrimitive(a)) {
             primitiveA = toPrimitive(a);
         }
         if (!isPrimitive(b)) {
             primitiveB = toPrimitive(b);
         }
+        const typeis_primitiveA = typeOf(primitiveA), typeis_primitiveB = typeOf(primitiveB);
         if (!(isPrimitive(primitiveA) && isPrimitive(primitiveB))) {
             throw new Error('either is not a primitive');
-        } else if (typeOf(primitiveA) === typeOf(primitiveB)) {
+        } else if (typeis_primitiveA === typeis_primitiveB) {
             return primitiveA === primitiveB;
-        } else if ((a === undefined || a === null) && (b === undefined || b === null)) {
+        } else if ((a === undefined || a === null) === (b === undefined || b === null)) {
             return true; // Both are undefined or null
         } else if ((a === undefined || a === null) !== (b === undefined || b === null)) {
             return false; // One is undefined or null, but the other is not
         } else {
-            if (primitiveA === undefined || primitiveA === null) {
-                return primitiveB === undefined || primitiveB === null;
-            }
-            if (((typeOf(primitiveA) === 'symbol') && !(typeOf(primitiveB) === 'symbol')) ||
-                ((typeOf(primitiveB) === 'symbol') && !(typeOf(primitiveA) === 'symbol'))) {
+            /* if (primitiveA === undefined || primitiveA === null) {
+            return primitiveB === undefined || primitiveB === null; }*/
+            if (((typeis_primitiveA === 'symbol') && !(typeis_primitiveB === 'symbol')) ||
+                ((typeis_primitiveB === 'symbol') && !(typeis_primitiveA === 'symbol'))) {
                 return false;// both are not Symbols while one is
             }
-            if (((typeOf(primitiveA) === 'boolean') && !(typeOf(primitiveB) === 'boolean')) ||
-                ((typeOf(primitiveB) === 'boolean') && !(typeOf(primitiveA) === 'boolean'))) {
-                if (typeOf(primitiveA) === 'boolean') primitiveA = Number(primitiveA);
-                if (typeOf(primitiveB) === 'boolean') primitiveB = Number(primitiveB);
+            if (((typeis_primitiveA === 'boolean') && !(typeis_primitiveB === 'boolean')) ||
+                ((typeis_primitiveB === 'boolean') && !(typeis_primitiveA === 'boolean'))) {
+                if (typeis_primitiveA === 'boolean') primitiveA = Number(primitiveA);
+                if (typeis_primitiveB === 'boolean') primitiveB = Number(primitiveB);
                 return loose_equal(primitiveA, primitiveB);
             }
-            if ((typeOf(primitiveA) === "number" && typeOf(primitiveB) === "bigint") ||
-                (typeOf(primitiveA) === "bigint" && typeOf(primitiveB) === "number")) {
+            if ((typeis_primitiveA === "number" && typeis_primitiveB === "bigint") ||
+                (typeis_primitiveA === "bigint" && typeis_primitiveB === "number")) {
                 return `${primitiveA}` === `${primitiveB}`;
             }
-            if ((typeOf(primitiveA) === "number" && typeOf(primitiveB) === "string") ||
-                (typeOf(primitiveA) === "string" && typeOf(primitiveB) === "number")) {
-                if (typeOf(primitiveA) === 'string') primitiveA = Number(primitiveA);
-                if (typeOf(primitiveB) === 'string') primitiveB = Number(primitiveB);
+            if ((typeis_primitiveA === "number" && typeis_primitiveB === "string") ||
+                (typeis_primitiveA === "string" && typeis_primitiveB === "number")) {
+                if (typeis_primitiveA === 'string') primitiveA = Number(primitiveA);
+                if (typeis_primitiveB === 'string') primitiveB = Number(primitiveB);
                 return primitiveA === primitiveB;
             }
-            if ((typeOf(primitiveA) === "bigint" && typeOf(primitiveB) === "string") ||
-                (typeOf(primitiveA) === "string" && typeOf(primitiveB) === "bigint")) {
+            if ((typeis_primitiveA === "bigint" && typeis_primitiveB === "string") ||
+                (typeis_primitiveA === "string" && typeis_primitiveB === "bigint")) {
                 try {
-                    if (typeOf(primitiveA) === 'string') primitiveA = BigInt(primitiveA);
-                    if (typeOf(primitiveB) === 'string') primitiveB = BigInt(primitiveB);
+                    if (typeis_primitiveA === 'string') primitiveA = BigInt(primitiveA);
+                    if (typeis_primitiveB === 'string') primitiveB = BigInt(primitiveB);
                     return primitiveA === primitiveB;
                 } catch {
                     return false;
@@ -316,6 +316,23 @@ function calculateExpression(expressionArray, throwIfEmpty = 0, selfObject = und
                 expressionArray_ = expressionArray_.filter(function (element) {
                     return element !== undefined;
                 });
+            } else if (L.type === R.type && L.type === 'string') {
+                expressionArray_[index - 1] = {
+                    type: 'string', value: (function () {
+                        switch (operator) {
+                            case'+':
+                                return L['value'] + R['value'];
+                            case'-':
+                            default:
+                        }
+                        throw new Error(`operator "${operator}" not supported`);
+                    })(),
+                };
+                expressionArray_[index + 1] = undefined;
+                expressionArray_[index] = undefined;
+                expressionArray_ = expressionArray_.filter(function (element) {
+                    return element !== undefined;
+                });
             } else {
                 throw new TypeError(`L.type{${L.type}}, R.type{${R.type}}; currently only numbers are supported`);
             }
@@ -383,37 +400,6 @@ calculateExpression.warnIfEmpty = 2;
 calculateExpression.undefinedIfEmpty = 0;
 calculateExpression.allowOnlyUndefined = 4;
 
-class SymbolRegistry {
-    constructor(desc) {
-        this.symbols = {};
-        if (desc !== undefined) {
-            this.symbols[String(desc)] = Symbol(String(desc));
-        }
-    }
-
-    register(desc) {
-        desc = String(desc); // Convert description to string
-        if (Object.hasOwn(this.symbols, desc)) {
-            return this.symbols[desc];
-        } else {
-            return this.symbols[desc] = Symbol(desc)
-        }
-    }
-
-    has(desc) {
-        return Object.hasOwn(this.symbols, String(desc));
-    }
-
-    unregister(desc) {
-        desc = String(desc);
-        if (this.has(desc)) {
-            delete this.symbols[desc];
-            return true;
-        }
-        return false;
-    }
-}
-
 function ObjectBufferPHP() {
     if (!new.target) {
         throw new Error('__ObjectBufferPHP must be invoked with \'new\'');
@@ -444,6 +430,7 @@ ObjectBufferPHP.prototype.removeBufferListener = function (listener) {
     });
     return found;
 };
+
 /*function __StringOrSymbol(any) {
     if ((typeof any) === 'symbol') {
         return any;
@@ -494,3 +481,29 @@ const setProperty = function (obj, keys, value) {
     const lastKey = keys[keys.length - 1];
     target[lastKey] = value;
 };*/
+class SymbolRegistry {
+    constructor() {
+        this.symbols = {};
+    }
+
+    register(name) {
+        if (name === undefined) throw new Error('undefined as value is explicitly disallowed');
+        name = String(name);
+        return this.symbols[name] ?? Symbol(name);
+    }
+
+    has(name) {
+        return Boolean(this.symbols[String(name)]);
+    }
+
+    deleteSymbol(name) {
+        if (name === undefined) throw new Error('undefined as value is explicitly disallowed');
+        name = String(name);
+        if (this.has(name)) {
+            delete this.symbols[name];
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
