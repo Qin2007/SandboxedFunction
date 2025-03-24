@@ -1,0 +1,678 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<!--6912--><title>SandBoxedFunction</title><style> .SandFunc_outerHTML { background-color: lightgray; border: 1px solid darkgray; color: black; margin: 1em 0; padding: 0.2em; } .SandFunc_Black { color: black; } .SandFunc_string { color: darkgreen; } .SandFunc_keyword, .SandFunc_backslash { color: #D66100; } .SandFunc_Identifier { color: #986e09; } .SandFunc_RegExp { color: #0073a6; } .SandFunc__RegExp_esc { color: #a17d08; } </style></head>
+<body><pre class=SandFunc_outerHTML role=none><code><span class=SandFunc_string>&quot;use strict&quot;</span><span class=SandFunc_delimiter>;</span>
+<span class=SandFunc_string>&quot;<span class=SandFunc_backslash></span><span class=SandFunc_backslash></span>&quot;</span><span class=SandFunc_delimiter>;</span><span class=SandFunc_Identifier>window</span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>document</span></span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>addEventListener</span></span><span class=SandFunc_delimiter>(</span><span class=SandFunc_string>&#39;DOMContentLoaded&#39;</span><span class=SandFunc_delimiter>,</span> <span class=SandFunc_keyword>function</span> <span class=SandFunc_delimiter>(</span><span class=SandFunc_delimiter>)</span> <span class=SandFunc_delimiter>{</span>
+    <span class=SandFunc_comment>// commented</span>
+    <span class=SandFunc_Identifier>document</span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>querySelectorAll</span></span><span class=SandFunc_delimiter>(</span><span class=SandFunc_string>&#39;time.toLocalTime&#39;</span><span class=SandFunc_delimiter>)</span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>forEach</span></span><span class=SandFunc_delimiter>(</span><span class=SandFunc_keyword>function</span> <span class=SandFunc_delimiter>(</span><span class=SandFunc_Identifier>each</span><span class=SandFunc_delimiter>)</span> <span class=SandFunc_delimiter>{</span>
+        <span class=SandFunc_Identifier>each</span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>innerText</span></span> <span class=SandFunc_delimiter>=</span> <span class=SandFunc_string>`Left-${new Date(each.dateTime)}-Right`</span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>replace</span></span><span class=SandFunc_delimiter>(</span><span class=SandFunc_RegExp>/ <span class="SandFunc_string">GMT</span><span class="SandFunc_Black">.</span>/</span><span class=SandFunc_delimiter>,</span> <span class=SandFunc_string>&#39;&#39;</span><span class=SandFunc_delimiter>)</span><span class=SandFunc_delimiter>;</span>
+    <span class=SandFunc_delimiter>}</span><span class=SandFunc_delimiter>)</span><span class=SandFunc_delimiter>;</span>
+    <span class=SandFunc_Identifier>document</span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>querySelectorAll</span></span><span class=SandFunc_delimiter>(</span><span class=SandFunc_string>&#39;time.toSelfTime&#39;</span><span class=SandFunc_delimiter>)</span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>forEach</span></span><span class=SandFunc_delimiter>(</span><span class=SandFunc_keyword>function</span> <span class=SandFunc_delimiter>(</span><span class=SandFunc_Identifier>each</span><span class=SandFunc_delimiter>)</span> <span class=SandFunc_delimiter>{</span>
+        <span class=SandFunc_Identifier>each</span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>innerText</span></span> <span class=SandFunc_delimiter>=</span> <span class=SandFunc_delimiter>(</span><span class=SandFunc_keyword>new</span> <span class=SandFunc_Identifier>Date</span><span class=SandFunc_delimiter>(</span><span class=SandFunc_Identifier>each</span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>dateTime</span></span><span class=SandFunc_delimiter>)</span><span class=SandFunc_delimiter>)</span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>toString</span></span><span class=SandFunc_delimiter>(</span><span class=SandFunc_delimiter>)</span><span class=SandFunc_delimiter>;</span>
+    <span class=SandFunc_delimiter>}</span><span class=SandFunc_delimiter>)</span><span class=SandFunc_delimiter>;</span>
+    <span class=SandFunc_Identifier>document</span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>querySelectorAll</span></span><span class=SandFunc_delimiter>(</span><span class=SandFunc_string>&#39;time[data-toLocalTime]&#39;</span><span class=SandFunc_delimiter>)</span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>forEach</span></span><span class=SandFunc_delimiter>(</span><span class=SandFunc_keyword>function</span> <span class=SandFunc_delimiter>(</span><span class=SandFunc_Identifier>each</span><span class=SandFunc_delimiter>)</span> <span class=SandFunc_delimiter>{</span>
+    <span class=SandFunc_keyword>const</span> <span class=SandFunc_Identifier>innerText</span> <span class=SandFunc_delimiter>=</span> <span class=SandFunc_delimiter>(</span><span class=SandFunc_Identifier>formatDate</span><span class=SandFunc_delimiter>(</span><span class=SandFunc_keyword>new</span> <span class=SandFunc_Identifier>Date</span><span class=SandFunc_delimiter>(</span><span class=SandFunc_Identifier>each</span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>dateTime</span></span><span class=SandFunc_delimiter>)</span><span class=SandFunc_delimiter>,</span> <span class=SandFunc_Identifier>each</span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>getAttribute</span></span><span class=SandFunc_delimiter>(</span><span class=SandFunc_string>&#39;data-toLocalTime&#39;</span><span class=SandFunc_delimiter>)</span><span class=SandFunc_delimiter>)</span><span class=SandFunc_delimiter>)</span><span class=SandFunc_delimiter>;</span>
+        <span class=SandFunc_Identifier>each</span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>innerText</span></span> <span class=SandFunc_delimiter>=</span> <span class=SandFunc_Identifier>innerText</span><span class=SandFunc_DotAccess><span class=SandFunc_delimiter>.</span><span class=SandFunc_Identifier>replace</span></span><span class=SandFunc_delimiter>(</span><span class=SandFunc_RegExp>/<span class="SandFunc__RegExp_esc">\s</span>*\(?<span class="SandFunc_string">UTC</span>\)/gi</span><span class=SandFunc_delimiter>,</span> <span class=SandFunc_string>&#39;&#39;</span><span class=SandFunc_delimiter>)</span><span class=SandFunc_delimiter>;</span>
+    <span class=SandFunc_delimiter>}</span><span class=SandFunc_delimiter>)</span><span class=SandFunc_delimiter>;</span>
+<span class=SandFunc_delimiter>}</span><span class=SandFunc_delimiter>)</span><span class=SandFunc_delimiter>;</span></code></pre><pre class=SandFunc_outerHTML role=none><code>{
+  "instructionTokens": [
+    {
+      "type": "string",
+      "value": "use strict",
+      "delimiter": "\""
+    },
+    {
+      "type": "delimiter",
+      "value": ";"
+    },
+    {
+      "type": "whitespace",
+      "value": "\n"
+    },
+    {
+      "type": "string",
+      "value": "\\\\\\\\",
+      "delimiter": "\""
+    },
+    {
+      "type": "delimiter",
+      "value": ";"
+    },
+    {
+      "type": "identifier",
+      "value": "window"
+    },
+    {
+      "type": "DotAccess",
+      "value": "document"
+    },
+    {
+      "type": "DotAccess",
+      "value": "addEventListener"
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "string",
+      "value": "DOMContentLoaded",
+      "delimiter": "'"
+    },
+    {
+      "type": "delimiter",
+      "value": ","
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "keyword",
+      "value": "function"
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "delimiter",
+      "value": "{"
+    },
+    {
+      "type": "whitespace",
+      "value": "\n    "
+    },
+    {
+      "type": "comment",
+      "value": "// commented"
+    },
+    {
+      "type": "whitespace",
+      "value": "\n    "
+    },
+    {
+      "type": "identifier",
+      "value": "document"
+    },
+    {
+      "type": "DotAccess",
+      "value": "querySelectorAll"
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "string",
+      "value": "time.toLocalTime",
+      "delimiter": "'"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "DotAccess",
+      "value": "forEach"
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "keyword",
+      "value": "function"
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "identifier",
+      "value": "each"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "delimiter",
+      "value": "{"
+    },
+    {
+      "type": "whitespace",
+      "value": "\n        "
+    },
+    {
+      "type": "identifier",
+      "value": "each"
+    },
+    {
+      "type": "DotAccess",
+      "value": "innerText"
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "operator",
+      "value": "="
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "TemplateLiteral",
+      "value": "Left-${new Date(each.dateTime)}-Right",
+      "delimiter": "`",
+      "templatalExpressions": [
+        {
+          "type": "literal",
+          "value": "Left-"
+        },
+        {
+          "type": "expression",
+          "value": "new Date(each.dateTime)"
+        },
+        {
+          "type": "literal",
+          "value": "-Right"
+        }
+      ]
+    },
+    {
+      "type": "DotAccess",
+      "value": "replace"
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "RegExp",
+      "value": " GMT.+",
+      "delimiter": "/",
+      "flags": "",
+      "regexp": "/ GMT./"
+    },
+    {
+      "type": "delimiter",
+      "value": ","
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "string",
+      "value": "",
+      "delimiter": "'"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "delimiter",
+      "value": ";"
+    },
+    {
+      "type": "whitespace",
+      "value": "\n    "
+    },
+    {
+      "type": "delimiter",
+      "value": "}"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "delimiter",
+      "value": ";"
+    },
+    {
+      "type": "whitespace",
+      "value": "\n    "
+    },
+    {
+      "type": "identifier",
+      "value": "document"
+    },
+    {
+      "type": "DotAccess",
+      "value": "querySelectorAll"
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "string",
+      "value": "time.toSelfTime",
+      "delimiter": "'"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "DotAccess",
+      "value": "forEach"
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "keyword",
+      "value": "function"
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "identifier",
+      "value": "each"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "delimiter",
+      "value": "{"
+    },
+    {
+      "type": "whitespace",
+      "value": "\n        "
+    },
+    {
+      "type": "identifier",
+      "value": "each"
+    },
+    {
+      "type": "DotAccess",
+      "value": "innerText"
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "operator",
+      "value": "="
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "keyword",
+      "value": "new"
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "identifier",
+      "value": "Date"
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "identifier",
+      "value": "each"
+    },
+    {
+      "type": "DotAccess",
+      "value": "dateTime"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "DotAccess",
+      "value": "toString"
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "delimiter",
+      "value": ";"
+    },
+    {
+      "type": "whitespace",
+      "value": "\n    "
+    },
+    {
+      "type": "delimiter",
+      "value": "}"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "delimiter",
+      "value": ";"
+    },
+    {
+      "type": "whitespace",
+      "value": "\n    "
+    },
+    {
+      "type": "identifier",
+      "value": "document"
+    },
+    {
+      "type": "DotAccess",
+      "value": "querySelectorAll"
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "string",
+      "value": "time[data-toLocalTime]",
+      "delimiter": "'"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "DotAccess",
+      "value": "forEach"
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "keyword",
+      "value": "function"
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "identifier",
+      "value": "each"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "delimiter",
+      "value": "{"
+    },
+    {
+      "type": "whitespace",
+      "value": "\n    "
+    },
+    {
+      "type": "keyword",
+      "value": "const"
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "identifier",
+      "value": "innerText"
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "operator",
+      "value": "="
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "identifier",
+      "value": "formatDate"
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "keyword",
+      "value": "new"
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "identifier",
+      "value": "Date"
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "identifier",
+      "value": "each"
+    },
+    {
+      "type": "DotAccess",
+      "value": "dateTime"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "delimiter",
+      "value": ","
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "identifier",
+      "value": "each"
+    },
+    {
+      "type": "DotAccess",
+      "value": "getAttribute"
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "string",
+      "value": "data-toLocalTime",
+      "delimiter": "'"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "delimiter",
+      "value": ";"
+    },
+    {
+      "type": "whitespace",
+      "value": "\n        "
+    },
+    {
+      "type": "identifier",
+      "value": "each"
+    },
+    {
+      "type": "DotAccess",
+      "value": "innerText"
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "operator",
+      "value": "="
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "identifier",
+      "value": "innerText"
+    },
+    {
+      "type": "DotAccess",
+      "value": "replace"
+    },
+    {
+      "type": "delimiter",
+      "value": "("
+    },
+    {
+      "type": "RegExp",
+      "value": "\\s*\\(?UTC\\)?",
+      "delimiter": "/",
+      "flags": "ig",
+      "regexp": "/\\s*\\(?UTC\\)/gi"
+    },
+    {
+      "type": "delimiter",
+      "value": ","
+    },
+    {
+      "type": "whitespace",
+      "value": " "
+    },
+    {
+      "type": "string",
+      "value": "",
+      "delimiter": "'"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "delimiter",
+      "value": ";"
+    },
+    {
+      "type": "whitespace",
+      "value": "\n    "
+    },
+    {
+      "type": "delimiter",
+      "value": "}"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "delimiter",
+      "value": ";"
+    },
+    {
+      "type": "whitespace",
+      "value": "\n"
+    },
+    {
+      "type": "delimiter",
+      "value": "}"
+    },
+    {
+      "type": "delimiter",
+      "value": ")"
+    },
+    {
+      "type": "delimiter",
+      "value": ";"
+    }
+  ],
+  "globalObject": {}
+}</code></pre></body></html>

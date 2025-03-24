@@ -1,0 +1,12 @@
+{
+    "name": "sandboxedfunction",
+    "version": "0.0.0",
+    "description": "A Browser ECMAScript Environment",
+    "license": "MIT",
+    "author": "binary-ant",
+    "type": "module",
+    "main": "SandboxedFunction.js",
+    "scripts": {
+        "test": "node tests.js"
+    }
+}
