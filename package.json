@@ -8,5 +8,9 @@
     "main": "SandboxedFunction.js",
     "scripts": {
         "test": "node tests.js"
+    },
+    "dependencies": {
+        "chrono-node": "^2.7.8",
+        "datetime_global": "^0.3.0"
     }
 }

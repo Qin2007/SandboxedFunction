@@ -1,35 +1,38 @@
+const function1 = Symbol('function');
 export const SandboxedFunction = function (javascript, globalObject) {
     const self = new.target ? this : Object.create(SandboxedFunction.prototype);
     self.instructionTokens = SandboxedFunction.__tokenize(javascript);
     const defaultObject = {
-    /*console: {
-        log: function (parameters, selfObject) {
-            const argumentsArray = ([...parameters.parameters].map(function (value) {
-                return value.value;
-            }));
-            console.log(...argumentsArray);
-            selfObject.consoleBuffer.append(argumentsArray.toString());
-            return EncapsulateObject(undefined);
-        }
-    },
-    Math: {
-        trunc: function (n:number) :number{
-            return Math.trunc(n);
-        }
-    },
-    Number: {
-        [SandboxedFunction.__call]: function (toNumber:any):number {
-            return Number(toNumber);
+        console: new SandboxedFunction.SandboxedFunctionWrapper(function () {
+        }),
+        /*console: {
+            log: function (parameters, selfObject) {
+                const argumentsArray = ([...parameters.parameters].map(function (value) {
+                    return value.value;
+                }));
+                console.log(...argumentsArray);
+                selfObject.consoleBuffer.append(argumentsArray.toString());
+                return EncapsulateObject(undefined);
+            }
         },
-    },
-    Date: {
-        [SandboxedFunction.__callBuiltIn](object) {
-            // object.length;
-            // noinspection JSCheckFunctionSignatures
-            return new Date(...object.parameters);
-        }
-    },
-    versionId: '0.0.42',*/
+        Math: {
+            trunc: function (n:number) :number{
+                return Math.trunc(n);
+            }
+        },
+        Number: {
+            [SandboxedFunction.__call]: function (toNumber:any):number {
+                return Number(toNumber);
+            },
+        },
+        Date: {
+            [SandboxedFunction.__callBuiltIn](object) {
+                // object.length;
+                // noinspection JSCheckFunctionSignatures
+                return new Date(...object.parameters);
+            }
+        },
+        versionId: '0.0.42',*/
     };
     if (globalObject !== undefined) {
         globalObject = Object.assign(defaultObject, DeepProxy(globalObject));
@@ -73,14 +76,14 @@ SandboxedFunction.prototype.toHTMLString = function () {
                 result.push(`<span class=${id}DotAccess><span class=${id}delimiter>.</span><span class=${id}Identifier>${htmlencode(instructionToken.value)}</span></span>`);
                 break;
             case "BigInt":
-                result.push(`<span class=${id}BigInt>${htmlencode(instructionToken.value)}n</span>`);
+                result.push(`<span class=${id}BigInt>${htmlencode(instructionToken.value)}</span>`);
                 break;
             case "RegExp":
                 if (!(instructionToken.regexp instanceof RegExp)) {
                     throw new Error('instructionToken.regexp is not an instanceof RegExp');
                 }
-                const regex = htmlencode(instructionToken.regexp.source);
-                result.push(`<span class=${id}RegExp>/${regex.replaceAll(/\\[dDsSwWBbnrvt]|\.|\w+/g, function (match) {
+                const regexp = instructionToken.regexp, regex = htmlencode(regexp.source);
+                const strxxx = regex.replaceAll(/\\[dDsSwWBbnrvt]|\.|\w+/g, function (match) {
                     if (/^\\[a-z]$/.test(match)) {
                         return `<span class="${id}_RegExp_esc">${match}</span>`;
                     }
@@ -91,7 +94,8 @@ SandboxedFunction.prototype.toHTMLString = function () {
                         return `<span class="${id}string">${match}</span>`;
                     }
                     return `${match}`;
-                })}/${instructionToken.regexp.flags}</span>`);
+                });
+                result.push(`<span class=${id}RegExp>/${strxxx}/${regexp.flags}</span>`);
                 break;
             case "string":
                 const strx = instructionToken.delimiter + String_raw(instructionToken.value) + instructionToken.delimiter;
@@ -106,19 +110,19 @@ SandboxedFunction.prototype.toHTMLString = function () {
     return `<pre class=${id}outerHTML role=none><code>${result.join('')}</code></pre>`;
 };
 SandboxedFunction.__undef = Symbol('__undef');
-SandboxedFunction.__callBuiltIn = Symbol('callBuiltIn');
-SandboxedFunction.__call = Symbol('call');
 SandboxedFunction.__tokenize = function (javascript) {
     let index = 0, line = 0, column = 0, jsCode = (function (string) {
         return String(string).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     })(String(javascript));
     //keywords=/\b(?:if|else|return|function|var|let|const|for|while|true|false|null)\b/
+    const keywords = /\b(?:if|else|switch|case|default|for|while|do|break|continue|return|throw|try|catch|finally|var|let|const|function|class|extends|super|this|new|delete|import|export|from|static|true|false|null|typeof|instanceof|void|yield|with|debugger|in|of)\b/;
     const tokens = [], regexPatterns = [
-        { type: "keyword", regex: /\b(?:if|else|return|function|var|let|const|for|while|true|false|null|new)\b/ },
+        { type: "keyword", regex: keywords, },
         { type: "comment", regex: /\/\/.*|\/\*[\s\S]*?\*\// },
         { type: "identifier", regex: /\b[a-zA-Z_][a-zA-Z0-9_]*\b/ },
         { type: "number", regex: /\b\d+(\.\d+)?\b/ },
         { type: "operator", regex: /[+\-*/=<>!&|]+/ },
+        { type: "operator", regex: /[?:]+/ },
         { type: "delimiter", regex: /[{}\[\]();,]/ },
         { type: "whitespace", regex: /\s+/ },
         { type: "DotAccess", regex: /\.\b[a-zA-Z_][a-zA-Z0-9_]*\b/ },
@@ -209,7 +213,7 @@ SandboxedFunction.__tokenize = function (javascript) {
     while (jsCode.length > 0) {
         let match = null, slice = true;
         const regexpArray = jsCode.match(/^(['"`\/])(?!\/)/);
-        if (regexpArray) {
+        if (regexpArray && !/\/\*/.test(jsCode)) {
             let length = 0, backslashed = false, skip = 0, templateStart = false;
             const array = [], delimiter = regexpArray[1], templatalExpressions = [];
             for (const strx of jsCode.slice(1)) {
@@ -228,7 +232,8 @@ SandboxedFunction.__tokenize = function (javascript) {
                         templatalExpressions.push({ type: "expression", value: addition });
                         skip += addition.length + 1;
                         continue;
-                    } //else {array.push(`\$`);}
+                    }
+                    //else {array.push(`\$`);}
                     templateStart = false;
                 }
                 if (/^[\\'"`\/]$/.test(strx)) {
@@ -271,13 +276,13 @@ SandboxedFunction.__tokenize = function (javascript) {
             jsCode = jsCode.slice(length + 1);
             const value = array.join('');
             if (delimiter === '\'' || delimiter === "\"") {
-                match = { type: 'string', value, delimiter };
+                match = { type: 'string', value, delimiter, index, line, column };
             }
             else if (delimiter === '/') {
                 const flags = keepRegExp(/^[dgimsuvy]+/, jsCode), regexp = new RegExp(value.slice(0, value.length - 1), flags);
                 jsCode = jsCode.slice(flags.length);
                 regexp.toJSON = regexp.toString;
-                match = { type: 'RegExp', value, delimiter, flags, regexp };
+                match = { type: 'RegExp', value, delimiter, flags, regexp, index, line, column };
             }
             else if (delimiter === '`') {
                 // throw new Error(`Template literals not supported`);
@@ -294,7 +299,9 @@ SandboxedFunction.__tokenize = function (javascript) {
                         else {
                             throw new Error('templatalExpression invalid type');
                         }
-                    }).join(''), delimiter, templatalExpressions
+                    }).join(''),
+                    delimiter, templatalExpressions,
+                    index, line, column
                 };
             }
             else {
@@ -306,7 +313,7 @@ SandboxedFunction.__tokenize = function (javascript) {
             for (const { type, regex } of regexPatterns) {
                 const result = regex.exec(jsCode);
                 if (result && result.index === 0) {
-                    match = { type, value: result[0] };
+                    match = { type, value: result[0], index, line, column };
                     break;
                 }
             }
@@ -332,6 +339,9 @@ SandboxedFunction.__tokenize = function (javascript) {
             offset++;
         }
         tokens.push(match);
+        // match.column = column;
+        // match.index = index;
+        // match.line = line;
         if (slice)
             jsCode = jsCode.slice(match.value.length + offset);
     }
@@ -362,7 +372,7 @@ SandboxedFunction.style = SandboxedFunction.styletag = `<style>
             color: #986e09;
         }
 
-        .SandboxedFunction_RegExp {
+        .SandboxedFunction_RegExp, .SandboxedFunction_BigInt, .SandboxedFunction_Number {
             color: #0073a6;
         }
 
@@ -370,6 +380,111 @@ SandboxedFunction.style = SandboxedFunction.styletag = `<style>
             color: #a17d08;
         }
     </style>`.replaceAll(/SandboxedFunction_/ig, SandboxedFunction.SandboxedFunctionHTMLClass).replaceAll(/\s+/g, ' ');
+SandboxedFunction.SandboxedFunctionWrapper = function (function1) {
+    const self = new.target ? this : Object.create(SandboxedFunction.prototype);
+    if (!(function1 instanceof Function)) {
+        throw new TypeError('SandboxedFunctionWrapper can only wrap Function Objects');
+    }
+    self[SandboxedFunction.SandboxedFunctionWrapper.__function] = function1;
+    if (!new.target)
+        return self;
+};
+SandboxedFunction.SandboxedFunctionWrapper.__function = function1;
+export class InternalSandboxedFunctionError extends Error {
+}
+SandboxedFunction.prototype.run = function (..._parameters) {
+    const context = {
+        stage: '404', currentObject: null, functions: {},
+    }, instructionTokens = this.instructionTokens;
+    let index = -1;
+    while (++index < instructionTokens.length) {
+        const instructionToken = instructionTokens[index], at = `(line:${instructionToken.line}, column:${instructionToken.column}, (index:${instructionToken.index}))`;
+        if (context.currentObject !== null && context.currentObject.type === 'function') {
+            context.currentObject.asStringArray.push(instructionToken.value);
+        }
+        if (context.stage === 'Function.body') {
+            if (context.currentObject === null) {
+                throw new InternalSandboxedFunctionError('context.currentObject is null ' + at);
+            }
+            context.currentObject.body.push(instructionToken);
+            if (instructionToken.type === 'delimiter' && instructionToken.value === '}') {
+                context.stage = '404';
+                context.currentObject.asString = context.currentObject.asStringArray.join('');
+                context.functions[context.currentObject.name] = context.currentObject;
+                context.currentObject.asStringArray.length = 0;
+                context.currentObject = null;
+            }
+            continue;
+        }
+        if (instructionToken.type === 'whitespace') {
+            // empty
+        }
+        else if (instructionToken.type === 'keyword' && context.stage === '404' && instructionToken.value === 'return') {
+        }
+        else if (instructionToken.type === 'keyword' && context.stage === '404' && instructionToken.value === 'function') {
+            context.stage = 'Function.name';
+            context.currentObject = {
+                type: 'function',
+                name: `Function${Date.now()}`,
+                parameters: [],
+                body: [],
+                asStringArray: ['function']
+            };
+        }
+        else if (context.stage === 'Function.name') {
+            if (instructionToken.type !== 'identifier') {
+                throw new SyntaxError(`identifier expected (got \`${instructionToken.type}\`) at ${at}`);
+            }
+            if (context.currentObject === null) {
+                throw new InternalSandboxedFunctionError('context.currentObject is null ' + at);
+            }
+            context.currentObject.name = instructionToken.value;
+            context.stage = 'arguments(';
+        }
+        else if (context.stage === 'arguments(') {
+            if (instructionToken.type !== 'delimiter' && instructionToken.value !== '(') {
+                throw new SyntaxError(`\`(\` expected (got \`${instructionToken.type}\`) at ${at}`);
+            }
+            context.stage = 'arguments_Id';
+        }
+        else if (context.stage === 'arguments_Id') {
+            if (instructionToken.value === ')') {
+                context.stage = 'arguments_body{';
+                continue;
+            }
+            else if (instructionToken.type !== 'identifier') {
+                throw new SyntaxError(`identifier expected (got \`${instructionToken.type}\`) at ${at}`);
+            }
+            if (context.currentObject === null) {
+                throw new InternalSandboxedFunctionError('context.currentObject is null ' + at);
+            }
+            context.currentObject.parameters.push(instructionToken.value);
+            context.stage = 'arguments,';
+        }
+        else if (context.stage === 'arguments,') {
+            if (instructionToken.value === ')') {
+                context.stage = 'arguments_body{';
+                continue;
+            }
+            if (instructionToken.type === 'delimiter' && (instructionToken.value === ',' || instructionToken.value === ')')) {
+                if (instructionToken.value === ',') {
+                    context.stage = 'arguments_Id';
+                    continue;
+                }
+            }
+            throw new SyntaxError(`\`,\` expected (got \`${instructionToken.type}\` \`${instructionToken.value}\`) at ${at}`);
+        }
+        else if (context.stage === 'arguments_body{') {
+            if (instructionToken.type === 'delimiter' && instructionToken.value === '{') {
+                context.stage = 'Function.body';
+                continue;
+            }
+            throw new SyntaxError(`\`{\` expected at ${at}`);
+        }
+    }
+    // for (const instructionToken of ) {}
+    return context;
+};
 function DeepProxy(target) {
     if (new.target) {
         throw new TypeError("DeepProxy must be invoked without 'new'");
@@ -473,3 +588,79 @@ typeOf.NULL_IsObject = 128;
 typeOf.identifyRegExp = 8;
 typeOf.identifyDate = 16;
 typeOf.NAN_IS_NAN = 4;
+export class PrototypeMap {
+    map;
+    prototype = new PrototypeMap(new Map(), null);
+    constructor(map = undefined, prototype = undefined) {
+        if (map === undefined)
+            map = new Map();
+        if (!(map instanceof Map)) {
+            throw new TypeError("First argument must be a Map.");
+        }
+        if (prototype !== null && !(prototype instanceof PrototypeMap)) {
+            throw new TypeError("Second argument must be a PrototypeMap or undefined.");
+        }
+        this.map = map;
+        this.prototype = prototype;
+    }
+    valueOf() {
+        return this.map;
+    }
+    toString() {
+        return this.map.toString();
+    }
+    toJSON() {
+        const map = this.map, string = {};
+        for (const [entry, value] of map.entries()) {
+            string[entry] = value;
+        }
+        return string;
+    }
+    get size() {
+        return this.map.size;
+    }
+    [Symbol.iterator]() {
+        return this.map[Symbol.iterator]();
+    }
+    set(key, value) {
+        if (typeof key !== "string" && typeof key !== "symbol") {
+            throw new TypeError("Key must be a string or symbol.");
+        }
+        this.map.set(key, value);
+        return this;
+    }
+    get(key) {
+        if (typeof key !== "string" && typeof key !== "symbol") {
+            throw new TypeError("Key must be a string or symbol.");
+        }
+        if (this.map.has(key)) {
+            return this.map.get(key);
+        }
+        return this.prototype ? this.prototype.get(key) : undefined;
+    }
+    hasOwn(key) {
+        if (typeof key !== "string" && typeof key !== "symbol") {
+            throw new TypeError("Key must be a string or symbol.");
+        }
+        return this.map.has(key);
+    }
+    setPrototypeTo(prototype) {
+        if (prototype !== null && !(prototype instanceof PrototypeMap)) {
+            throw new TypeError("Argument must be a PrototypeMap or undefined.");
+        }
+        this.prototype = prototype;
+        return this;
+    }
+    getPrototype() {
+        return this.prototype;
+    }
+    static create(prototype) {
+        if (prototype !== null && !(prototype instanceof PrototypeMap)) {
+            throw new TypeError("Argument must be a PrototypeMap or undefined.");
+        }
+        return new PrototypeMap(new Map(), prototype);
+    }
+    get [Symbol.toStringTag]() {
+        return 'PrototypeMap';
+    }
+}

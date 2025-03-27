@@ -4,34 +4,51 @@ export type SandboxedFunction = {
     //toString(): string,
     globalObject: any,
     toHTMLString(this: SandboxedFunction): string,
+    run(this: SandboxedFunction, ...parameters: any[]): any
 };
 type instructionToken = {
     type: "keyword" | "comment" | "identifier" | "number" | "operator" | "delimiter" | "whitespace" | "DotAccess" | "BigInt" | "RegExp" | "string" | "TemplateLiteral" | string,
     value: string, delimiter?: string, jsCode?: string, regexp?: RegExp,
-    templatalExpressions?: ({ type: "literal" | "expression", value: string })[], flags?: string,
+    templatalExpressions?: ({ type: "literal" | "expression", value: string })[],
+    flags?: string,
+    // index?: number, line?: number, column?: number,
+    index: number, line: number, column: number,
 };
+const function1 = Symbol('function');
+export type SandboxedFunctionWrapper = {
+    [function1]: Function,
+};
+
+export type SandboxedFunctionWrapper_constructor = {
+    new(function1: Function): SandboxedFunctionWrapper | void,
+    (function1: Function): SandboxedFunctionWrapper | void,
+    prototype: SandboxedFunctionWrapper,
+    __function: typeof function1,
+}
 
 export interface SandboxedFunction_constructor {
     new(javascript: string, globalObject?: any | undefined): SandboxedFunction;
 
     (javascript: string, globalObject?: any | undefined): string;
 
-    prototype: SandboxedFunction;
-
     __tokenize(javascript: string): instructionToken[];
 
-    __callBuiltIn: symbol,
+    prototype: SandboxedFunction;
     __undef: symbol,
-    __call: symbol,
     styletag: string,
     style: string,
     SandboxedFunctionHTMLClass: string,
+    SandboxedFunctionWrapper: SandboxedFunctionWrapper_constructor,
 }
 
-export const SandboxedFunction: SandboxedFunction_constructor = function (this: SandboxedFunction, javascript: string, globalObject?: any | undefined): string | SandboxedFunction | void {//window = globalThis,
+export const SandboxedFunction: SandboxedFunction_constructor = function (
+    this: SandboxedFunction, javascript: string,
+    globalObject?: any | undefined): string | SandboxedFunction | void {//window = globalThis,
     const self: SandboxedFunction = new.target ? this : Object.create(SandboxedFunction.prototype);
     self.instructionTokens = SandboxedFunction.__tokenize(javascript);
     const defaultObject: any = {
+        console: new SandboxedFunction.SandboxedFunctionWrapper(function () {
+        }),
         /*console: {
             log: function (parameters, selfObject) {
                 const argumentsArray = ([...parameters.parameters].map(function (value) {
@@ -68,6 +85,7 @@ export const SandboxedFunction: SandboxedFunction_constructor = function (this: 
     self.globalObject = Object(globalObject);
     if (!new.target) return self.toHTMLString();
 } as SandboxedFunction_constructor;
+
 SandboxedFunction.SandboxedFunctionHTMLClass = 'SandFunc_';
 SandboxedFunction.prototype.toHTMLString = function (this: SandboxedFunction): string {
     const String_raw = function (string: string): string {
@@ -103,28 +121,29 @@ SandboxedFunction.prototype.toHTMLString = function (this: SandboxedFunction): s
                 result.push(`<span class=${id}DotAccess><span class=${id}delimiter>.</span><span class=${id}Identifier>${htmlencode(instructionToken.value)}</span></span>`);
                 break;
             case"BigInt":
-                result.push(`<span class=${id}BigInt>${htmlencode(instructionToken.value)}n</span>`);
+                result.push(`<span class=${id}BigInt>${htmlencode(instructionToken.value)}</span>`);
                 break;
             case"RegExp":
                 if (!(instructionToken.regexp instanceof RegExp)) {
                     throw new Error('instructionToken.regexp is not an instanceof RegExp');
                 }
-                const regex: string = htmlencode(instructionToken.regexp.source);
-
-                result.push(`<span class=${id}RegExp>/${regex.replaceAll(/\\[dDsSwWBbnrvt]|\.|\w+/g, function (match: string): string {
-                    if (/^\\[a-z]$/.test(match)) {
-                        return `<span class="${id}_RegExp_esc">${match}</span>`
-                    } else if (/^\.$/.test(match)) {
-                        return `<span class="${id}Black">${match}</span>`
-                    } else if (/^\w+$/.test(match)) {
-                        return `<span class="${id}string">${match}</span>`;
-                    }
-                    return `${match}`;
-                })}/${instructionToken.regexp.flags}</span>`);
+                const regexp: RegExp = instructionToken.regexp, regex: string = htmlencode(regexp.source);
+                const strxxx: string = regex.replaceAll(
+                    /\\[dDsSwWBbnrvt]|\.|\w+/g, function (match: string): string {
+                        if (/^\\[a-z]$/.test(match)) {
+                            return `<span class="${id}_RegExp_esc">${match}</span>`
+                        } else if (/^\.$/.test(match)) {
+                            return `<span class="${id}Black">${match}</span>`
+                        } else if (/^\w+$/.test(match)) {
+                            return `<span class="${id}string">${match}</span>`;
+                        }
+                        return `${match}`;
+                    });
+                result.push(`<span class=${id}RegExp>/${strxxx}/${regexp.flags}</span>`);
                 break;
             case"string":
                 const strx: string = instructionToken.delimiter + String_raw(instructionToken.value) + instructionToken.delimiter;
-                result.push(`<span class=${id}string>${htmlencode(strx).replaceAll(/\\\\/g,`<span class=${id}backslash></span>`)}</span>`);
+                result.push(`<span class=${id}string>${htmlencode(strx).replaceAll(/\\\\/g, `<span class=${id}backslash></span>`)}</span>`);
                 break;
             case"TemplateLiteral":
                 const templ: string = instructionToken.delimiter + String_raw(instructionToken.value);
@@ -135,20 +154,20 @@ SandboxedFunction.prototype.toHTMLString = function (this: SandboxedFunction): s
     return `<pre class=${id}outerHTML role=none><code>${result.join('')}</code></pre>`;
 };
 SandboxedFunction.__undef = Symbol('__undef');
-SandboxedFunction.__callBuiltIn = Symbol('callBuiltIn');
-SandboxedFunction.__call = Symbol('call');
 SandboxedFunction.__tokenize = function (javascript: string): instructionToken[] {
     let index: number = 0, line: number = 0, column: number = 0,
         jsCode: string = (function (string: string): string {
             return String(string).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         })(String(javascript));
     //keywords=/\b(?:if|else|return|function|var|let|const|for|while|true|false|null)\b/
-    const tokens = [], regexPatterns = [
-        {type: "keyword", regex: /\b(?:if|else|return|function|var|let|const|for|while|true|false|null|new)\b/},
+    const keywords: RegExp = /\b(?:if|else|switch|case|default|for|while|do|break|continue|return|throw|try|catch|finally|var|let|const|function|class|extends|super|this|new|delete|import|export|from|static|true|false|null|typeof|instanceof|void|yield|with|debugger|in|of)\b/;
+    const tokens: any[] = [], regexPatterns = [
+        {type: "keyword", regex: keywords,},
         {type: "comment", regex: /\/\/.*|\/\*[\s\S]*?\*\//},
         {type: "identifier", regex: /\b[a-zA-Z_][a-zA-Z0-9_]*\b/},
         {type: "number", regex: /\b\d+(\.\d+)?\b/},
         {type: "operator", regex: /[+\-*/=<>!&|]+/},
+        {type: "operator", regex: /[?:]+/},
         {type: "delimiter", regex: /[{}\[\]();,]/},
         {type: "whitespace", regex: /\s+/},
         {type: "DotAccess", regex: /\.\b[a-zA-Z_][a-zA-Z0-9_]*\b/},
@@ -224,9 +243,9 @@ SandboxedFunction.__tokenize = function (javascript: string): instructionToken[]
         throw new SyntaxError(`Unfinished Templatal expression (${indentation}), (line:${inner_line}, column:${inner_column}, (index:${inner_index}))`);
     };
     while (jsCode.length > 0) {
-        let match = null, slice: boolean = true;
+        let match: instructionToken | null = null, slice: boolean = true;
         const regexpArray = jsCode.match(/^(['"`\/])(?!\/)/);
-        if (regexpArray) {
+        if (regexpArray && !/\/\*/.test(jsCode)) {
             let length: number = 0, backslashed: boolean = false,
                 skip: number = 0, templateStart: boolean = false;
             type templatalExpression = ({ type: "literal" | "expression", value: string });
@@ -248,7 +267,8 @@ SandboxedFunction.__tokenize = function (javascript: string): instructionToken[]
                         templatalExpressions.push({type: "expression", value: addition});
                         skip += addition.length + 1;
                         continue;
-                    }//else {array.push(`\$`);}
+                    }
+                    //else {array.push(`\$`);}
                     templateStart = false;
                 }
                 if (/^[\\'"`\/]$/.test(strx)) {
@@ -284,13 +304,13 @@ SandboxedFunction.__tokenize = function (javascript: string): instructionToken[]
             jsCode = jsCode.slice(length + 1);
             const value = array.join('');
             if (delimiter === '\'' || delimiter === "\"") {
-                match = {type: 'string', value, delimiter};
+                match = {type: 'string', value, delimiter, index, line, column};
             } else if (delimiter === '/') {
                 const flags: string = keepRegExp(/^[dgimsuvy]+/, jsCode),
                     regexp: RegExp & { toJSON?: Function } = new RegExp(value.slice(0, value.length - 1), flags);
                 jsCode = jsCode.slice(flags.length);
                 regexp.toJSON = regexp.toString;
-                match = {type: 'RegExp', value, delimiter, flags, regexp};
+                match = {type: 'RegExp', value, delimiter, flags, regexp, index, line, column};
             } else if (delimiter === '`') {
                 // throw new Error(`Template literals not supported`);
                 templatalExpressions.push({type: "literal", value: array.join('')});
@@ -304,7 +324,9 @@ SandboxedFunction.__tokenize = function (javascript: string): instructionToken[]
                         } else {
                             throw new Error('templatalExpression invalid type');
                         }
-                    }).join(''), delimiter, templatalExpressions
+                    }).join(''),
+                    delimiter, templatalExpressions,
+                    index, line, column
                 };
             } else {
                 throw new Error(`Unknown Demiliter At: \`\`\`${jsCode.slice(0, 10)}\`\`\``);
@@ -314,7 +336,7 @@ SandboxedFunction.__tokenize = function (javascript: string): instructionToken[]
             for (const {type, regex} of regexPatterns) {
                 const result = regex.exec(jsCode);
                 if (result && result.index === 0) {
-                    match = {type, value: result[0]};
+                    match = {type, value: result[0], index, line, column};
                     break;
                 }
             }
@@ -339,6 +361,9 @@ SandboxedFunction.__tokenize = function (javascript: string): instructionToken[]
             offset++;
         }
         tokens.push(match);
+        // match.column = column;
+        // match.index = index;
+        // match.line = line;
         if (slice) jsCode = jsCode.slice(match.value.length + offset);
     }
     //tokens.push({type: 'delimiter', value: ';'});
@@ -368,7 +393,7 @@ SandboxedFunction.style = SandboxedFunction.styletag = `<style>
             color: #986e09;
         }
 
-        .SandboxedFunction_RegExp {
+        .SandboxedFunction_RegExp, .SandboxedFunction_BigInt, .SandboxedFunction_Number {
             color: #0073a6;
         }
 
@@ -377,6 +402,115 @@ SandboxedFunction.style = SandboxedFunction.styletag = `<style>
         }
     </style>`.replaceAll(/SandboxedFunction_/ig,
     SandboxedFunction.SandboxedFunctionHTMLClass).replaceAll(/\s+/g, ' ');
+SandboxedFunction.SandboxedFunctionWrapper = function (
+    this: SandboxedFunctionWrapper, function1: Function | any): SandboxedFunctionWrapper | void {
+    const self: SandboxedFunctionWrapper = new.target ? this : Object.create(SandboxedFunction.prototype);
+    if (!(function1 instanceof Function)) {
+        throw new TypeError('SandboxedFunctionWrapper can only wrap Function Objects');
+    }
+    self[SandboxedFunction.SandboxedFunctionWrapper.__function] = function1;
+    if (!new.target) return self;
+} as SandboxedFunctionWrapper_constructor;
+SandboxedFunction.SandboxedFunctionWrapper.__function = function1;
+
+export class InternalSandboxedFunctionError extends Error {
+}
+
+type FunctionCreation = {
+    type: 'function', name: string, parameters: string[],
+    body: instructionToken[], asStringArray: string[],
+    asString?: string,
+};
+SandboxedFunction.prototype.run = function (this: SandboxedFunction, ..._parameters: any[]): any {
+    const context: {
+        stage: string, currentObject: FunctionCreation | null,
+        functions: { [k: string]: FunctionCreation },
+    } = {
+        stage: '404', currentObject: null, functions: {},
+    }, instructionTokens: instructionToken[] = this.instructionTokens;
+    let index: number = -1;
+    while (++index < instructionTokens.length) {
+        const instructionToken: instructionToken = instructionTokens[index],
+            at: string = `(line:${instructionToken.line}, column:${instructionToken.column}, (index:${instructionToken.index}))`;
+        if (context.currentObject !== null && context.currentObject.type === 'function') {
+            context.currentObject.asStringArray.push(instructionToken.value);
+        }
+        if (context.stage === 'Function.body') {
+            if (context.currentObject === null) {
+                throw new InternalSandboxedFunctionError('context.currentObject is null ' + at);
+            }
+            context.currentObject.body.push(instructionToken);
+            if (instructionToken.type === 'delimiter' && instructionToken.value === '}') {
+                context.stage = '404';
+                context.currentObject.asString = context.currentObject.asStringArray.join('');
+                context.functions[context.currentObject.name] = context.currentObject;
+                context.currentObject.asStringArray.length = 0;
+                context.currentObject = null;
+            }
+            continue;
+        }
+        if (instructionToken.type === 'whitespace') {
+            // empty
+        } else if (instructionToken.type === 'keyword' && context.stage === '404' && instructionToken.value === 'return') {
+
+        } else if (instructionToken.type === 'keyword' && context.stage === '404' && instructionToken.value === 'function') {
+            context.stage = 'Function.name';
+            context.currentObject = {
+                type: 'function',
+                name: `Function${Date.now()}`,
+                parameters: [],
+                body: [],
+                asStringArray: ['function']
+            };
+        } else if (context.stage === 'Function.name') {
+            if (instructionToken.type !== 'identifier') {
+                throw new SyntaxError(`identifier expected (got \`${instructionToken.type}\`) at ${at}`);
+            }
+            if (context.currentObject === null) {
+                throw new InternalSandboxedFunctionError('context.currentObject is null ' + at);
+            }
+            context.currentObject.name = instructionToken.value;
+            context.stage = 'arguments(';
+        } else if (context.stage === 'arguments(') {
+            if (instructionToken.type !== 'delimiter' && instructionToken.value !== '(') {
+                throw new SyntaxError(`\`(\` expected (got \`${instructionToken.type}\`) at ${at}`);
+            }
+            context.stage = 'arguments_Id';
+        } else if (context.stage === 'arguments_Id') {
+            if (instructionToken.value === ')') {
+                context.stage = 'arguments_body{';
+                continue;
+            } else if (instructionToken.type !== 'identifier') {
+                throw new SyntaxError(`identifier expected (got \`${instructionToken.type}\`) at ${at}`);
+            }
+            if (context.currentObject === null) {
+                throw new InternalSandboxedFunctionError('context.currentObject is null ' + at);
+            }
+            context.currentObject.parameters.push(instructionToken.value);
+            context.stage = 'arguments,';
+        } else if (context.stage === 'arguments,') {
+            if (instructionToken.value === ')') {
+                context.stage = 'arguments_body{';
+                continue;
+            }
+            if (instructionToken.type === 'delimiter' && (instructionToken.value === ',' || instructionToken.value === ')')) {
+                if (instructionToken.value === ',') {
+                    context.stage = 'arguments_Id';
+                    continue;
+                }
+            }
+            throw new SyntaxError(`\`,\` expected (got \`${instructionToken.type}\` \`${instructionToken.value}\`) at ${at}`);
+        } else if (context.stage === 'arguments_body{') {
+            if (instructionToken.type === 'delimiter' && instructionToken.value === '{') {
+                context.stage = 'Function.body';
+                continue;
+            }
+            throw new SyntaxError(`\`{\` expected at ${at}`);
+        }
+    }
+    // for (const instructionToken of ) {}
+    return context;
+};
 
 function DeepProxy(target: any): object {
     if (new.target) {
@@ -481,3 +615,93 @@ typeOf.NULL_IsObject = 128;
 typeOf.identifyRegExp = 8;
 typeOf.identifyDate = 16;
 typeOf.NAN_IS_NAN = 4;
+
+export class PrototypeMap {
+    private readonly map: Map<string | symbol, any>;
+    private prototype: PrototypeMap | null = new PrototypeMap(new Map(), null);
+
+    constructor(map: Map<string | symbol, any> | undefined = undefined, prototype: null | PrototypeMap | undefined = undefined) {
+        if (map === undefined) map = new Map();
+        if (!(map instanceof Map)) {
+            throw new TypeError("First argument must be a Map.");
+        }
+        if (prototype !== null && !(prototype instanceof PrototypeMap)) {
+            throw new TypeError("Second argument must be a PrototypeMap or undefined.");
+        }
+
+        this.map = map;
+        this.prototype = prototype;
+    }
+
+    valueOf(): Map<string | symbol, any> {
+        return this.map;
+    }
+
+    toString(): string {
+        return this.map.toString();
+    }
+
+    toJSON(): object {
+        const map: Map<string | symbol, any> = this.map, string: any = {};
+        for (const [entry, value] of map.entries()) {
+            string[entry] = value;
+        }
+        return string;
+    }
+
+    get size(): number {
+        return this.map.size;
+    }
+
+    [Symbol.iterator]() {
+        return this.map[Symbol.iterator]();
+    }
+
+    set(key: string | symbol, value: any): this {
+        if (typeof key !== "string" && typeof key !== "symbol") {
+            throw new TypeError("Key must be a string or symbol.");
+        }
+        this.map.set(key, value);
+        return this;
+    }
+
+    get(key: string | symbol): any {
+        if (typeof key !== "string" && typeof key !== "symbol") {
+            throw new TypeError("Key must be a string or symbol.");
+        }
+        if (this.map.has(key)) {
+            return this.map.get(key);
+        }
+        return this.prototype ? this.prototype.get(key) : undefined;
+    }
+
+    hasOwn(key: string | symbol): boolean {
+        if (typeof key !== "string" && typeof key !== "symbol") {
+            throw new TypeError("Key must be a string or symbol.");
+        }
+        return this.map.has(key);
+    }
+
+    setPrototypeTo(prototype: PrototypeMap | null): this {
+        if (prototype !== null && !(prototype instanceof PrototypeMap)) {
+            throw new TypeError("Argument must be a PrototypeMap or undefined.");
+        }
+        this.prototype = prototype;
+        return this;
+    }
+
+    getPrototype(): PrototypeMap | null {
+        return this.prototype;
+    }
+
+    static create(prototype: PrototypeMap | null): PrototypeMap {
+        if (prototype !== null && !(prototype instanceof PrototypeMap)) {
+            throw new TypeError("Argument must be a PrototypeMap or undefined.");
+        }
+        return new PrototypeMap(new Map(), prototype);
+    }
+
+    get [Symbol.toStringTag](): 'PrototypeMap' {
+        return 'PrototypeMap';
+    }
+}
