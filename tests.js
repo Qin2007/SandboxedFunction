@@ -1,7 +1,5 @@
 import {PrototypeMap, SandboxedFunction, typeOf} from "./SandboxedFunction.js";
 import fs from 'node:fs';
-import {Datetime_global} from "datetime_global/Datetime_global.js";
-import * as chrono from "chrono-node";
 /*`"use strict";
 "\\\\\\\\";window.document.addEventListener('DOMContentLoaded', function () {
     // commented
@@ -19,14 +17,16 @@ import * as chrono from "chrono-node";
 /**/
 //SandboxedFunction.__tokenize
 //chrono.parseDate
-const sandboxedFunction = new SandboxedFunction(`function hypertext() {
-    return 5 + 5 * 6;//"hello";
+const sandboxedFunction = new SandboxedFunction(`function add(x, y) {
+  return x + y;
 }
-return hypertext();`), sandboxedFunction_string = sandboxedFunction.toHTMLString();
+let z = add("2", 3);
+return z;`), sandboxedFunction_string = sandboxedFunction.toHTMLString();
 //<pre class=${SandboxedFunction.SandboxedFunctionHTMLClass}outerHTML role=none><code>${JSON.stringify(sandboxedFunction, null,2)}</code></pre>
 fs.writeFile('hyperNode.html', `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <!--${sandboxedFunction_string.length}--><title>SandBoxedFunction</title>${SandboxedFunction.style}</head>
-<body>${sandboxedFunction_string}<pre class=${SandboxedFunction.SandboxedFunctionHTMLClass}outerHTML role=none><code>${JSON.stringify(sandboxedFunction, null,2)}</code></pre></body></html>`, err => {
+<body>${sandboxedFunction_string}<pre class=${SandboxedFunction.SandboxedFunctionHTMLClass}outerHTML role=none><code>${JSON.stringify(
+    sandboxedFunction, null,2)}</code></pre></body></html>`, err => {
     if (err) {
         console.error(err);
     } else {

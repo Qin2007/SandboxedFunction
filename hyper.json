@@ -1,127 +1,244 @@
 {
-  "stage": "404",
-  "currentObject": null,
-  "functions": {
-    "hypertext": {
-      "type": "function",
-      "name": "hypertext",
-      "parameters": [],
-      "body": [
-        {
-          "type": "whitespace",
-          "value": "\n    ",
-          "index": 22,
-          "line": 0,
-          "column": 22
-        },
-        {
-          "type": "keyword",
-          "value": "return",
-          "index": 27,
-          "line": 1,
-          "column": 5
-        },
-        {
-          "type": "whitespace",
-          "value": " ",
-          "index": 33,
-          "line": 1,
-          "column": 11
-        },
-        {
-          "type": "number",
-          "value": "5",
-          "index": 34,
-          "line": 1,
-          "column": 12
-        },
-        {
-          "type": "whitespace",
-          "value": " ",
-          "index": 35,
-          "line": 1,
-          "column": 13
-        },
-        {
-          "type": "operator",
-          "value": "+",
-          "index": 36,
-          "line": 1,
-          "column": 14
-        },
-        {
-          "type": "whitespace",
-          "value": " ",
-          "index": 37,
-          "line": 1,
-          "column": 15
-        },
-        {
-          "type": "number",
-          "value": "5",
-          "index": 38,
-          "line": 1,
-          "column": 16
-        },
-        {
-          "type": "whitespace",
-          "value": " ",
-          "index": 39,
-          "line": 1,
-          "column": 17
-        },
-        {
-          "type": "operator",
-          "value": "*",
-          "index": 40,
-          "line": 1,
-          "column": 18
-        },
-        {
-          "type": "whitespace",
-          "value": " ",
-          "index": 41,
-          "line": 1,
-          "column": 19
-        },
-        {
-          "type": "number",
-          "value": "6",
-          "index": 42,
-          "line": 1,
-          "column": 20
-        },
-        {
-          "type": "delimiter",
-          "value": ";",
-          "index": 43,
-          "line": 1,
-          "column": 21
-        },
-        {
-          "type": "comment",
-          "value": "//\"hello\";",
-          "index": 44,
-          "line": 1,
-          "column": 22
-        },
-        {
-          "type": "whitespace",
-          "value": "\n",
-          "index": 54,
-          "line": 1,
-          "column": 32
-        },
-        {
-          "type": "delimiter",
-          "value": "}",
-          "index": 55,
-          "line": 2,
-          "column": 1
-        }
-      ],
-      "asStringArray": [],
-      "asString": "function hypertext() {\n    return 5 + 5 * 6;//\"hello\";\n}"
-    }
+  "context": {
+    "stage": "404",
+    "currentObject": null,
+    "functions": {
+      "add": {
+        "type": "function",
+        "name": "add",
+        "parameters": [
+          "x",
+          "y"
+        ],
+        "body": [
+          {
+            "type": "whitespace",
+            "value": "\n  ",
+            "index": 20,
+            "line": 0,
+            "column": 20
+          },
+          {
+            "type": "keyword",
+            "value": "return",
+            "index": 23,
+            "line": 1,
+            "column": 3
+          },
+          {
+            "type": "whitespace",
+            "value": " ",
+            "index": 29,
+            "line": 1,
+            "column": 9
+          },
+          {
+            "type": "identifier",
+            "value": "x",
+            "index": 30,
+            "line": 1,
+            "column": 10
+          },
+          {
+            "type": "whitespace",
+            "value": " ",
+            "index": 31,
+            "line": 1,
+            "column": 11
+          },
+          {
+            "type": "operator",
+            "value": "+",
+            "index": 32,
+            "line": 1,
+            "column": 12
+          },
+          {
+            "type": "whitespace",
+            "value": " ",
+            "index": 33,
+            "line": 1,
+            "column": 13
+          },
+          {
+            "type": "identifier",
+            "value": "y",
+            "index": 34,
+            "line": 1,
+            "column": 14
+          },
+          {
+            "type": "delimiter",
+            "value": ";",
+            "index": 35,
+            "line": 1,
+            "column": 15
+          },
+          {
+            "type": "whitespace",
+            "value": "\n",
+            "index": 36,
+            "line": 1,
+            "column": 16
+          },
+          {
+            "type": "delimiter",
+            "value": "}",
+            "index": 37,
+            "line": 2,
+            "column": 1
+          }
+        ],
+        "asStringArray": [],
+        "asString": "function add(x, y) {\n  return x + y;\n}"
+      }
+    },
+    "instructionTokens": [
+      {
+        "type": "whitespace",
+        "value": "\n",
+        "index": 38,
+        "line": 2,
+        "column": 2
+      },
+      {
+        "type": "keyword",
+        "value": "let",
+        "index": 39,
+        "line": 3,
+        "column": 1
+      },
+      {
+        "type": "whitespace",
+        "value": " ",
+        "index": 42,
+        "line": 3,
+        "column": 4
+      },
+      {
+        "type": "identifier",
+        "value": "z",
+        "index": 43,
+        "line": 3,
+        "column": 5
+      },
+      {
+        "type": "whitespace",
+        "value": " ",
+        "index": 44,
+        "line": 3,
+        "column": 6
+      },
+      {
+        "type": "operator",
+        "value": "=",
+        "index": 45,
+        "line": 3,
+        "column": 7
+      },
+      {
+        "type": "whitespace",
+        "value": " ",
+        "index": 46,
+        "line": 3,
+        "column": 8
+      },
+      {
+        "type": "identifier",
+        "value": "add",
+        "index": 47,
+        "line": 3,
+        "column": 9
+      },
+      {
+        "type": "delimiter",
+        "value": "(",
+        "index": 50,
+        "line": 3,
+        "column": 12
+      },
+      {
+        "type": "string",
+        "value": "2",
+        "delimiter": "\"",
+        "index": 51,
+        "line": 3,
+        "column": 13
+      },
+      {
+        "type": "delimiter",
+        "value": ",",
+        "index": 52,
+        "line": 3,
+        "column": 14
+      },
+      {
+        "type": "whitespace",
+        "value": " ",
+        "index": 53,
+        "line": 3,
+        "column": 15
+      },
+      {
+        "type": "number",
+        "value": "3",
+        "index": 54,
+        "line": 3,
+        "column": 16
+      },
+      {
+        "type": "delimiter",
+        "value": ")",
+        "index": 55,
+        "line": 3,
+        "column": 17
+      },
+      {
+        "type": "delimiter",
+        "value": ";",
+        "index": 56,
+        "line": 3,
+        "column": 18
+      },
+      {
+        "type": "whitespace",
+        "value": "\n",
+        "index": 57,
+        "line": 3,
+        "column": 19
+      },
+      {
+        "type": "keyword",
+        "value": "return",
+        "index": 58,
+        "line": 4,
+        "column": 1
+      },
+      {
+        "type": "whitespace",
+        "value": " ",
+        "index": 64,
+        "line": 4,
+        "column": 7
+      },
+      {
+        "type": "identifier",
+        "value": "z",
+        "index": 65,
+        "line": 4,
+        "column": 8
+      },
+      {
+        "type": "delimiter",
+        "value": ";",
+        "index": 66,
+        "line": 4,
+        "column": 9
+      }
+    ]
+  },
+  "runContext": {
+    "stage": "let-decl",
+    "objectChain": []
   }
 }
