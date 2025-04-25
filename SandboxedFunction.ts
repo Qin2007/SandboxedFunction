@@ -1,4 +1,7 @@
 // javascript
+export const __undef: symbol = Symbol.for('__undef');
+export type __undef = typeof __undef;
+
 export type context = {
     stage: string, currentObject: FunctionCreation | null,
     functions: { [k: string]: FunctionCreation },
@@ -22,6 +25,7 @@ type instructionToken = {
     AutomaticSemicolonInserted_Inserted?: boolean
 };
 
+
 export interface SandboxedFunction_constructor {
     new(javascript: string, globalObject?: any | undefined): SandboxedFunction;
 
@@ -30,7 +34,7 @@ export interface SandboxedFunction_constructor {
     __tokenize(javascript: string): instructionToken[];
 
     prototype: SandboxedFunction;
-    __undef: symbol,
+    __undef: __undef,
     TemporalDeadZone: symbol,
     styletag: string,
     style: string,
@@ -63,7 +67,7 @@ export const SandboxedFunction: SandboxedFunction_constructor = function (
             }
             if (context.stage === 'Function.body') {
                 if (context.currentObject === null) {
-                    throw new InternalSandboxedFunctionError('context.currentObject is null ' + at);
+                    throw new InternalSandboxedFunctionError('context.currentObject is null ', instructionToken.line, instructionToken.column, instructionToken.index);
                 }
                 context.currentObject.body.push(instructionToken);
                 if (instructionToken.type === 'delimiter' && instructionToken.value === '}') {
@@ -94,7 +98,7 @@ export const SandboxedFunction: SandboxedFunction_constructor = function (
                     throw new SyntaxError(`identifier expected (got \`${instructionToken.type}\`) at ${at}`);
                 }
                 if (context.currentObject === null) {
-                    throw new InternalSandboxedFunctionError('context.currentObject is null ' + at);
+                    throw new InternalSandboxedFunctionError('context.currentObject is null ', instructionToken.line, instructionToken.column, instructionToken.index);
                 }
                 context.currentObject.name = instructionToken.value;
                 context.stage = 'arguments(';
@@ -111,7 +115,7 @@ export const SandboxedFunction: SandboxedFunction_constructor = function (
                     throw new SyntaxError(`identifier expected (got \`${instructionToken.type}\`) at ${at}`);
                 }
                 if (context.currentObject === null) {
-                    throw new InternalSandboxedFunctionError('context.currentObject is null ' + at);
+                    throw new InternalSandboxedFunctionError('context.currentObject is null ', instructionToken.line, instructionToken.column, instructionToken.index);
                 }
                 context.currentObject.parameters.push(instructionToken.value);
                 context.stage = 'arguments,';
@@ -208,7 +212,7 @@ SandboxedFunction.prototype.toHTMLString = function (this: SandboxedFunction): s
     }
     return `<pre class=${id}outerHTML role=none><code>${result.join('')}</code></pre>`;
 };
-SandboxedFunction.__undef = Symbol('__undef');
+SandboxedFunction.__undef = __undef;
 SandboxedFunction.TemporalDeadZone = Symbol('TemporalDeadZone');
 SandboxedFunction.__tokenize = function (javascript: string): instructionToken[] {
     let index: number = 0, line: number = 0, column: number = 0,
@@ -535,6 +539,9 @@ function convertToPrototypeMap(obj: object, prototype?: PrototypeMap | null): Pr
 }
 
 export class InternalSandboxedFunctionError extends Error {
+    constructor(message: string | undefined, line: number, column: number, index: number) {
+        super(`${message}; at(line:${line}, column:${column}, ${index})`);
+    }
 }
 
 type FunctionCreation = {
@@ -561,12 +568,12 @@ SandboxedFunction.prototype.run = function (this: SandboxedFunction, ..._paramet
             case "identifier":
                 if (runContext.stage === 'var-decl') {
                     if (map === undefined) {
-                        throw new InternalSandboxedFunctionError('map is undefined');
+                        throw new InternalSandboxedFunctionError('map is undefined', instructionToken.line, instructionToken.column, instructionToken.index);
                     }
                     map.set(instructionToken.value, SandboxedFunction.__undef);
                 } else if (runContext.stage.endsWith('-decl')) {
                     if (map === undefined) {
-                        throw new InternalSandboxedFunctionError('map is undefined');
+                        throw new InternalSandboxedFunctionError('map is undefined', instructionToken.line, instructionToken.column, instructionToken.index);
                     }
                     map.set(instructionToken.value, SandboxedFunction.TemporalDeadZone);
                 }
@@ -641,63 +648,6 @@ SandboxedFunction.prototype.run = function (this: SandboxedFunction, ..._paramet
 //         },
 //     });
 // }
-
-
-export function typeOf(o: any, mode: number = 0): "NULL" | "Array" | "NaN" | "Date" | "RegExp" | "Promise" | "undefined" | "object" | "boolean" | "number" | "string" | "function" | "symbol" | "bigint" {
-    const t = typeof o;
-    const m = Math.trunc(Number(mode));
-    if (o === null) {
-        return (!(m & (typeOf.NULL_IsObject as number))) ? "NULL" : 'object';
-    }
-    if ((m & typeOf.functionsAreObjects) === typeOf.functionsAreObjects) {
-        if (t === "function") {
-            return "object";
-        }
-    }
-    if ((m & typeOf.checkArraySeperately) === typeOf.checkArraySeperately) {
-        if (Array.isArray(o)) {
-            return "Array";
-        }
-    }
-    if (m & (typeOf.NAN_IS_NAN as number)) {
-        if (Number.isNaN(o)) {
-            return "NaN";
-        }
-    }
-    if (t === 'object') {
-        if (m & (typeOf.identifyRegExp as number)) {
-            if (o instanceof RegExp) return "RegExp";
-        }
-        if (m & (typeOf.identifyDate as number)) {
-            if (o instanceof Date) return "Date";
-        }
-        if (m & (typeOf.identifyPromise as number)) {
-            if (o instanceof Promise) return "Promise";
-        }
-        if (m & (typeOf.identifyVia_constructor as number)) {
-            const value = o;
-            if (value.constructor && value.constructor.name) {
-                return value.constructor.name;
-            }
-        }
-    }
-    if (t === 'undefined' && m & (typeOf.undefinedIsNULL as number)) {
-        return 'NULL';
-    }
-    return t;
-}
-
-typeOf.identifyVia_constructor = 64;
-typeOf.checkArraySeperately = 1;
-typeOf.functionsAreObjects = 2;
-typeOf.undefinedIsNULL = 256;
-typeOf.identifyPromise = 32;
-typeOf.NULL_IsObject = 128;
-typeOf.identifyRegExp = 8;
-typeOf.identifyDate = 16;
-typeOf.NAN_IS_NAN = 4;
-
-
 function defaultGlobalThis(): PrototypeMap {
     const global: Map<string | symbol, any> = new Map<string | symbol, any>();
 

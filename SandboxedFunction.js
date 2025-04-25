@@ -20,7 +20,7 @@ export const SandboxedFunction = function (javascript, globalObject) {
             }
             if (context.stage === 'Function.body') {
                 if (context.currentObject === null) {
-                    throw new InternalSandboxedFunctionError('context.currentObject is null ' + at);
+                    throw new InternalSandboxedFunctionError('context.currentObject is null ', instructionToken.line, instructionToken.column, instructionToken.index);
                 }
                 context.currentObject.body.push(instructionToken);
                 if (instructionToken.type === 'delimiter' && instructionToken.value === '}') {
@@ -53,7 +53,7 @@ export const SandboxedFunction = function (javascript, globalObject) {
                     throw new SyntaxError(`identifier expected (got \`${instructionToken.type}\`) at ${at}`);
                 }
                 if (context.currentObject === null) {
-                    throw new InternalSandboxedFunctionError('context.currentObject is null ' + at);
+                    throw new InternalSandboxedFunctionError('context.currentObject is null ', instructionToken.line, instructionToken.column, instructionToken.index);
                 }
                 context.currentObject.name = instructionToken.value;
                 context.stage = 'arguments(';
@@ -73,7 +73,7 @@ export const SandboxedFunction = function (javascript, globalObject) {
                     throw new SyntaxError(`identifier expected (got \`${instructionToken.type}\`) at ${at}`);
                 }
                 if (context.currentObject === null) {
-                    throw new InternalSandboxedFunctionError('context.currentObject is null ' + at);
+                    throw new InternalSandboxedFunctionError('context.currentObject is null ', instructionToken.line, instructionToken.column, instructionToken.index);
                 }
                 context.currentObject.parameters.push(instructionToken.value);
                 context.stage = 'arguments,';
@@ -181,11 +181,16 @@ SandboxedFunction.__tokenize = function (javascript) {
     })(String(javascript));
     //keywords=/\b(?:if|else|return|function|var|let|const|for|while|true|false|null)\b/
     const keywords = /\b(?:if|else|switch|case|default|for|while|do|break|continue|return|throw|try|catch|finally|var|let|const|function|class|extends|super|this|new|delete|import|export|from|static|true|false|null|typeof|instanceof|void|yield|with|debugger|in|of)\b/;
+    //=/^[+-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?|0[xX][\da-fA-F]+|0[oO][0-7]+|0[bB][01]+$/
     const tokens = [], regexPatterns = [
         { type: "keyword", regex: keywords, },
         { type: "comment", regex: /\/\/.*|\/\*[\s\S]*?\*\// },
         { type: "identifier", regex: /\b[a-zA-Z_][a-zA-Z0-9_]*\b/ },
-        { type: "number", regex: /\b\d+(\.\d+)?\b/ },
+        // {type: "number", regex: /\b\d+(\.\d+)?\b/},
+        {
+            type: "number",
+            regex: /^[+-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?|0[xX][\da-fA-F]+|0[oO][0-7]+|0[bB][01]+$/
+        },
         { type: "operator", regex: /[+\-*/=<>!&|]+/ },
         { type: "operator", regex: /[?:]+/ },
         { type: "delimiter", regex: /[{}\[\]();,]/ },
@@ -512,6 +517,9 @@ function convertToPrototypeMap(obj, prototype) {
     return lastMap ?? new PrototypeMap();
 }
 export class InternalSandboxedFunctionError extends Error {
+    constructor(message, line, column, index) {
+        super(`${message}; at(line:${line}, column:${column}, ${index})`);
+    }
 }
 class Scope extends Array {
     variables;
@@ -528,13 +536,13 @@ SandboxedFunction.prototype.run = function (..._parameters) {
             case "identifier":
                 if (runContext.stage === 'var-decl') {
                     if (map === undefined) {
-                        throw new InternalSandboxedFunctionError('');
+                        throw new InternalSandboxedFunctionError('map is undefined', instructionToken.line, instructionToken.column, instructionToken.index);
                     }
                     map.set(instructionToken.value, SandboxedFunction.__undef);
                 }
                 else if (runContext.stage.endsWith('-decl')) {
                     if (map === undefined) {
-                        throw new InternalSandboxedFunctionError('');
+                        throw new InternalSandboxedFunctionError('map is undefined', instructionToken.line, instructionToken.column, instructionToken.index);
                     }
                     map.set(instructionToken.value, SandboxedFunction.TemporalDeadZone);
                 }
@@ -559,7 +567,7 @@ SandboxedFunction.prototype.run = function (..._parameters) {
                 break;
         }
     }
-    return { context: this.context, runContext };
+    return { context: this.context, runContext, map };
 };
 // function DeepProxy(target: any): object {
 //     if (new.target) {
@@ -609,61 +617,6 @@ SandboxedFunction.prototype.run = function (..._parameters) {
 //         },
 //     });
 // }
-export function typeOf(o, mode = 0) {
-    const t = typeof o;
-    const m = Math.trunc(Number(mode));
-    if (o === null) {
-        return (!(m & typeOf.NULL_IsObject)) ? "NULL" : 'object';
-    }
-    if ((m & typeOf.functionsAreObjects) === typeOf.functionsAreObjects) {
-        if (t === "function") {
-            return "object";
-        }
-    }
-    if ((m & typeOf.checkArraySeperately) === typeOf.checkArraySeperately) {
-        if (Array.isArray(o)) {
-            return "Array";
-        }
-    }
-    if (m & typeOf.NAN_IS_NAN) {
-        if (Number.isNaN(o)) {
-            return "NaN";
-        }
-    }
-    if (t === 'object') {
-        if (m & typeOf.identifyRegExp) {
-            if (o instanceof RegExp)
-                return "RegExp";
-        }
-        if (m & typeOf.identifyDate) {
-            if (o instanceof Date)
-                return "Date";
-        }
-        if (m & typeOf.identifyPromise) {
-            if (o instanceof Promise)
-                return "Promise";
-        }
-        if (m & typeOf.identifyVia_constructor) {
-            const value = o;
-            if (value.constructor && value.constructor.name) {
-                return value.constructor.name;
-            }
-        }
-    }
-    if (t === 'undefined' && m & typeOf.undefinedIsNULL) {
-        return 'NULL';
-    }
-    return t;
-}
-typeOf.identifyVia_constructor = 64;
-typeOf.checkArraySeperately = 1;
-typeOf.functionsAreObjects = 2;
-typeOf.undefinedIsNULL = 256;
-typeOf.identifyPromise = 32;
-typeOf.NULL_IsObject = 128;
-typeOf.identifyRegExp = 8;
-typeOf.identifyDate = 16;
-typeOf.NAN_IS_NAN = 4;
 function defaultGlobalThis() {
     const global = new Map();
     // Basic value constructors

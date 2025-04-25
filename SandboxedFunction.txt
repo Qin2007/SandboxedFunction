@@ -1,10 +1,19 @@
 // javascript
-export type SandboxedFunction = {
+export const __undef: symbol = Symbol.for('__undef');
+export type __undef = typeof __undef;
+
+export type context = {
+    stage: string, currentObject: FunctionCreation | null,
+    functions: { [k: string]: FunctionCreation },
     instructionTokens: instructionToken[],
-    //toString(): string,
+}
+export type SandboxedFunction = {
+    context: context;
+    instructionTokens: instructionToken[],
     globalObject: any,
     toHTMLString(this: SandboxedFunction): string,
-    run(this: SandboxedFunction, ...parameters: any[]): any
+    run(this: SandboxedFunction, ...parameters: any[]): any,
+    executableTokens: instructionToken[],
 };
 type instructionToken = {
     type: "keyword" | "comment" | "identifier" | "number" | "operator" | "delimiter" | "whitespace" | "DotAccess" | "BigInt" | "RegExp" | "string" | "TemplateLiteral" | string,
@@ -13,18 +22,9 @@ type instructionToken = {
     flags?: string,
     // index?: number, line?: number, column?: number,
     index: number, line: number, column: number,
-};
-const function1 = Symbol('function');
-export type SandboxedFunctionWrapper = {
-    [function1]: Function,
+    AutomaticSemicolonInserted_Inserted?: boolean
 };
 
-export type SandboxedFunctionWrapper_constructor = {
-    new(function1: Function): SandboxedFunctionWrapper | void,
-    (function1: Function): SandboxedFunctionWrapper | void,
-    prototype: SandboxedFunctionWrapper,
-    __function: typeof function1,
-}
 
 export interface SandboxedFunction_constructor {
     new(javascript: string, globalObject?: any | undefined): SandboxedFunction;
@@ -34,11 +34,11 @@ export interface SandboxedFunction_constructor {
     __tokenize(javascript: string): instructionToken[];
 
     prototype: SandboxedFunction;
-    __undef: symbol,
+    __undef: __undef,
+    TemporalDeadZone: symbol,
     styletag: string,
     style: string,
     SandboxedFunctionHTMLClass: string,
-    SandboxedFunctionWrapper: SandboxedFunctionWrapper_constructor,
 }
 
 export const SandboxedFunction: SandboxedFunction_constructor = function (
@@ -46,43 +46,102 @@ export const SandboxedFunction: SandboxedFunction_constructor = function (
     globalObject?: any | undefined): string | SandboxedFunction | void {//window = globalThis,
     const self: SandboxedFunction = new.target ? this : Object.create(SandboxedFunction.prototype);
     self.instructionTokens = SandboxedFunction.__tokenize(javascript);
-    const defaultObject: any = {
-        console: new SandboxedFunction.SandboxedFunctionWrapper(function () {
-        }),
-        /*console: {
-            log: function (parameters, selfObject) {
-                const argumentsArray = ([...parameters.parameters].map(function (value) {
-                    return value.value;
-                }));
-                console.log(...argumentsArray);
-                selfObject.consoleBuffer.append(argumentsArray.toString());
-                return EncapsulateObject(undefined);
-            }
-        },
-        Math: {
-            trunc: function (n:number) :number{
-                return Math.trunc(n);
-            }
-        },
-        Number: {
-            [SandboxedFunction.__call]: function (toNumber:any):number {
-                return Number(toNumber);
-            },
-        },
-        Date: {
-            [SandboxedFunction.__callBuiltIn](object) {
-                // object.length;
-                // noinspection JSCheckFunctionSignatures
-                return new Date(...object.parameters);
-            }
-        },
-        versionId: '0.0.42',*/
-    };
     if (globalObject !== undefined) {
-        globalObject = Object.assign(defaultObject, DeepProxy(globalObject));
+        globalObject = Object.assign(defaultGlobalThis(), convertToPrototypeMap(globalObject));
     }
 
     self.globalObject = Object(globalObject);
+
+    self.context = (function (this: SandboxedFunction): context {
+        const context: context = {
+            stage: '404', currentObject: null, functions: {}, instructionTokens: [],
+        }, instructionTokens: instructionToken[] = this.instructionTokens;
+        let index: number = -1;
+        while (++index < instructionTokens.length) {
+            const instructionToken: instructionToken = instructionTokens[index],
+                at: string = `(line:${instructionToken.line}, column:${instructionToken.column}, (index:${instructionToken.index}))`;
+            if (context.currentObject !== null && context.currentObject.type === 'function') {
+                context.currentObject.asStringArray.push(instructionToken.value);
+            } else {
+                context.instructionTokens.push(instructionToken);
+            }
+            if (context.stage === 'Function.body') {
+                if (context.currentObject === null) {
+                    throw new InternalSandboxedFunctionError('context.currentObject is null ', instructionToken.line, instructionToken.column, instructionToken.index);
+                }
+                context.currentObject.body.push(instructionToken);
+                if (instructionToken.type === 'delimiter' && instructionToken.value === '}') {
+                    context.stage = '404';
+                    context.currentObject.asString = context.currentObject.asStringArray.join('');
+                    context.functions[context.currentObject.name] = context.currentObject;
+                    context.currentObject.asStringArray.length = 0;
+                    context.currentObject = null;
+                }
+                continue;
+            }
+            if (instructionToken.type === 'whitespace') {
+                // empty
+            } else if (instructionToken.type === 'keyword' && context.stage === '404' && instructionToken.value === 'return') {
+
+            } else if (instructionToken.type === 'keyword' && context.stage === '404' && instructionToken.value === 'function') {
+                context.stage = 'Function.name';
+                context.currentObject = {
+                    type: 'function',
+                    name: `Function${Date.now()}`,
+                    parameters: [],
+                    body: [],
+                    asStringArray: ['function']
+                };
+                context.instructionTokens.pop();
+            } else if (context.stage === 'Function.name') {
+                if (instructionToken.type !== 'identifier') {
+                    throw new SyntaxError(`identifier expected (got \`${instructionToken.type}\`) at ${at}`);
+                }
+                if (context.currentObject === null) {
+                    throw new InternalSandboxedFunctionError('context.currentObject is null ', instructionToken.line, instructionToken.column, instructionToken.index);
+                }
+                context.currentObject.name = instructionToken.value;
+                context.stage = 'arguments(';
+            } else if (context.stage === 'arguments(') {
+                if (instructionToken.type !== 'delimiter' && instructionToken.value !== '(') {
+                    throw new SyntaxError(`\`(\` expected (got \`${instructionToken.type}\`) at ${at}`);
+                }
+                context.stage = 'arguments_Id';
+            } else if (context.stage === 'arguments_Id') {
+                if (instructionToken.value === ')') {
+                    context.stage = 'arguments_body{';
+                    continue;
+                } else if (instructionToken.type !== 'identifier') {
+                    throw new SyntaxError(`identifier expected (got \`${instructionToken.type}\`) at ${at}`);
+                }
+                if (context.currentObject === null) {
+                    throw new InternalSandboxedFunctionError('context.currentObject is null ', instructionToken.line, instructionToken.column, instructionToken.index);
+                }
+                context.currentObject.parameters.push(instructionToken.value);
+                context.stage = 'arguments,';
+            } else if (context.stage === 'arguments,') {
+                if (instructionToken.value === ')') {
+                    context.stage = 'arguments_body{';
+                    continue;
+                }
+                if (instructionToken.type === 'delimiter' && (instructionToken.value === ',' || instructionToken.value === ')')) {
+                    if (instructionToken.value === ',') {
+                        context.stage = 'arguments_Id';
+                        continue;
+                    }
+                }
+                throw new SyntaxError(`\`,\` expected (got \`${instructionToken.type}\` \`${instructionToken.value}\`) at ${at}`);
+            } else if (context.stage === 'arguments_body{') {
+                if (instructionToken.type === 'delimiter' && instructionToken.value === '{') {
+                    context.stage = 'Function.body';
+                    continue;
+                }
+                throw new SyntaxError(`\`{\` expected at ${at}`);
+            }
+        }
+        return context;
+    }).call(self);
+    self.executableTokens = self.context.instructionTokens;
     if (!new.target) return self.toHTMLString();
 } as SandboxedFunction_constructor;
 
@@ -153,7 +212,8 @@ SandboxedFunction.prototype.toHTMLString = function (this: SandboxedFunction): s
     }
     return `<pre class=${id}outerHTML role=none><code>${result.join('')}</code></pre>`;
 };
-SandboxedFunction.__undef = Symbol('__undef');
+SandboxedFunction.__undef = __undef;
+SandboxedFunction.TemporalDeadZone = Symbol('TemporalDeadZone');
 SandboxedFunction.__tokenize = function (javascript: string): instructionToken[] {
     let index: number = 0, line: number = 0, column: number = 0,
         jsCode: string = (function (string: string): string {
@@ -161,11 +221,16 @@ SandboxedFunction.__tokenize = function (javascript: string): instructionToken[]
         })(String(javascript));
     //keywords=/\b(?:if|else|return|function|var|let|const|for|while|true|false|null)\b/
     const keywords: RegExp = /\b(?:if|else|switch|case|default|for|while|do|break|continue|return|throw|try|catch|finally|var|let|const|function|class|extends|super|this|new|delete|import|export|from|static|true|false|null|typeof|instanceof|void|yield|with|debugger|in|of)\b/;
-    const tokens: any[] = [], regexPatterns = [
+    //=/^[+-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?|0[xX][\da-fA-F]+|0[oO][0-7]+|0[bB][01]+$/
+    const tokens: any[] = [], regexPatterns: ({ type: string, regex: RegExp })[] = [
         {type: "keyword", regex: keywords,},
         {type: "comment", regex: /\/\/.*|\/\*[\s\S]*?\*\//},
         {type: "identifier", regex: /\b[a-zA-Z_][a-zA-Z0-9_]*\b/},
-        {type: "number", regex: /\b\d+(\.\d+)?\b/},
+        // {type: "number", regex: /\b\d+(\.\d+)?\b/},
+        {
+            type: "number",
+            regex: /^[+-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?|0[xX][\da-fA-F]+|0[oO][0-7]+|0[bB][01]+$/
+        },
         {type: "operator", regex: /[+\-*/=<>!&|]+/},
         {type: "operator", regex: /[?:]+/},
         {type: "delimiter", regex: /[{}\[\]();,]/},
@@ -369,6 +434,39 @@ SandboxedFunction.__tokenize = function (javascript: string): instructionToken[]
     //tokens.push({type: 'delimiter', value: ';'});
     return tokens;
 };
+// SandboxedFunction.style = SandboxedFunction.styletag = `<style>
+//         .SandboxedFunction_outerHTML {
+//             background-color: lightgray;
+//             border: 1px solid darkgray;
+//             color: black;
+//             margin: 1em 0;
+//             padding: 0.2em;
+//         }
+//         .SandboxedFunction_Black {
+//             color: black;
+//         }
+//
+//         .SandboxedFunction_string {
+//             color: darkgreen;
+//         }
+//
+//         .SandboxedFunction_keyword, .SandboxedFunction_backslash {
+//             color: #D66100;
+//         }
+//
+//         .SandboxedFunction_Identifier {
+//             color: #986e09;
+//         }
+//
+//         .SandboxedFunction_RegExp, .SandboxedFunction_BigInt, .SandboxedFunction_Number {
+//             color: #0073a6;
+//         }
+//
+//         .SandboxedFunction__RegExp_esc {
+//             color: #a17d08;
+//         }
+//     </style>`.replaceAll(/SandboxedFunction_/ig,
+//     SandboxedFunction.SandboxedFunctionHTMLClass).replaceAll(/\s+/g, ' ');
 SandboxedFunction.style = SandboxedFunction.styletag = `<style>
         .SandboxedFunction_outerHTML {
             background-color: lightgray;
@@ -377,24 +475,29 @@ SandboxedFunction.style = SandboxedFunction.styletag = `<style>
             margin: 1em 0;
             padding: 0.2em;
         }
+
         .SandboxedFunction_Black {
             color: black;
         }
 
         .SandboxedFunction_string {
-            color: darkgreen;
+            color: #4caf50;
         }
 
-        .SandboxedFunction_keyword, .SandboxedFunction_backslash {
-            color: #D66100;
+        .SandboxedFunction_keyword {
+            color: #1a73e8;
         }
 
-        .SandboxedFunction_Identifier {
+        .SandboxedFunction_backslash {
             color: #986e09;
         }
 
+        .SandboxedFunction_Identifier {
+            color: #e91e63;
+        }
+
         .SandboxedFunction_RegExp, .SandboxedFunction_BigInt, .SandboxedFunction_Number {
-            color: #0073a6;
+            color: #f44336;
         }
 
         .SandboxedFunction__RegExp_esc {
@@ -402,18 +505,43 @@ SandboxedFunction.style = SandboxedFunction.styletag = `<style>
         }
     </style>`.replaceAll(/SandboxedFunction_/ig,
     SandboxedFunction.SandboxedFunctionHTMLClass).replaceAll(/\s+/g, ' ');
-SandboxedFunction.SandboxedFunctionWrapper = function (
-    this: SandboxedFunctionWrapper, function1: Function | any): SandboxedFunctionWrapper | void {
-    const self: SandboxedFunctionWrapper = new.target ? this : Object.create(SandboxedFunction.prototype);
-    if (!(function1 instanceof Function)) {
-        throw new TypeError('SandboxedFunctionWrapper can only wrap Function Objects');
+
+function convertToPrototypeMap(obj: object, prototype?: PrototypeMap | null): PrototypeMap {
+    const ensurePrototypeMap = function (proto: any): PrototypeMap | null {
+        if (proto === null) return null;
+        if (proto instanceof PrototypeMap) return proto;
+        throw new TypeError("Provided prototype must be a PrototypeMap or null");
+    };
+
+    const toPrototypeMap = function (source: object, fallbackProto: PrototypeMap | null): PrototypeMap {
+        const map: Map<string | symbol, any> = new Map<string | symbol, any>();
+        for (const key of Reflect.ownKeys(source)) {
+            map.set(key, Reflect.get(source, key));
+        }
+        return new PrototypeMap(map, fallbackProto);
+    };
+
+    if (prototype !== undefined) {
+        // Explicit prototype provided (either null or valid PrototypeMap)
+        return toPrototypeMap(obj, ensurePrototypeMap(prototype));
     }
-    self[SandboxedFunction.SandboxedFunctionWrapper.__function] = function1;
-    if (!new.target) return self;
-} as SandboxedFunctionWrapper_constructor;
-SandboxedFunction.SandboxedFunctionWrapper.__function = function1;
+
+    // No explicit prototype — walk the object's prototype chain
+    let lastMap: PrototypeMap | null = null;
+    let current: object | null = obj;
+
+    while (current && current !== Object.prototype) {
+        lastMap = toPrototypeMap(current, lastMap);
+        current = Object.getPrototypeOf(current);
+    }
+
+    return lastMap ?? new PrototypeMap();
+}
 
 export class InternalSandboxedFunctionError extends Error {
+    constructor(message: string | undefined, line: number, column: number, index: number) {
+        super(`${message}; at(line:${line}, column:${column}, ${index})`);
+    }
 }
 
 type FunctionCreation = {
@@ -421,219 +549,182 @@ type FunctionCreation = {
     body: instructionToken[], asStringArray: string[],
     asString?: string,
 };
-SandboxedFunction.prototype.run = function (this: SandboxedFunction, ..._parameters: any[]): any {
-    const context: {
-        stage: string, currentObject: FunctionCreation | null,
-        functions: { [k: string]: FunctionCreation },
-    } = {
-        stage: '404', currentObject: null, functions: {},
-    }, instructionTokens: instructionToken[] = this.instructionTokens;
-    let index: number = -1;
-    while (++index < instructionTokens.length) {
-        const instructionToken: instructionToken = instructionTokens[index],
-            at: string = `(line:${instructionToken.line}, column:${instructionToken.column}, (index:${instructionToken.index}))`;
-        if (context.currentObject !== null && context.currentObject.type === 'function') {
-            context.currentObject.asStringArray.push(instructionToken.value);
-        }
-        if (context.stage === 'Function.body') {
-            if (context.currentObject === null) {
-                throw new InternalSandboxedFunctionError('context.currentObject is null ' + at);
-            }
-            context.currentObject.body.push(instructionToken);
-            if (instructionToken.type === 'delimiter' && instructionToken.value === '}') {
-                context.stage = '404';
-                context.currentObject.asString = context.currentObject.asStringArray.join('');
-                context.functions[context.currentObject.name] = context.currentObject;
-                context.currentObject.asStringArray.length = 0;
-                context.currentObject = null;
-            }
-            continue;
-        }
-        if (instructionToken.type === 'whitespace') {
-            // empty
-        } else if (instructionToken.type === 'keyword' && context.stage === '404' && instructionToken.value === 'return') {
 
-        } else if (instructionToken.type === 'keyword' && context.stage === '404' && instructionToken.value === 'function') {
-            context.stage = 'Function.name';
-            context.currentObject = {
-                type: 'function',
-                name: `Function${Date.now()}`,
-                parameters: [],
-                body: [],
-                asStringArray: ['function']
-            };
-        } else if (context.stage === 'Function.name') {
-            if (instructionToken.type !== 'identifier') {
-                throw new SyntaxError(`identifier expected (got \`${instructionToken.type}\`) at ${at}`);
-            }
-            if (context.currentObject === null) {
-                throw new InternalSandboxedFunctionError('context.currentObject is null ' + at);
-            }
-            context.currentObject.name = instructionToken.value;
-            context.stage = 'arguments(';
-        } else if (context.stage === 'arguments(') {
-            if (instructionToken.type !== 'delimiter' && instructionToken.value !== '(') {
-                throw new SyntaxError(`\`(\` expected (got \`${instructionToken.type}\`) at ${at}`);
-            }
-            context.stage = 'arguments_Id';
-        } else if (context.stage === 'arguments_Id') {
-            if (instructionToken.value === ')') {
-                context.stage = 'arguments_body{';
-                continue;
-            } else if (instructionToken.type !== 'identifier') {
-                throw new SyntaxError(`identifier expected (got \`${instructionToken.type}\`) at ${at}`);
-            }
-            if (context.currentObject === null) {
-                throw new InternalSandboxedFunctionError('context.currentObject is null ' + at);
-            }
-            context.currentObject.parameters.push(instructionToken.value);
-            context.stage = 'arguments,';
-        } else if (context.stage === 'arguments,') {
-            if (instructionToken.value === ')') {
-                context.stage = 'arguments_body{';
-                continue;
-            }
-            if (instructionToken.type === 'delimiter' && (instructionToken.value === ',' || instructionToken.value === ')')) {
-                if (instructionToken.value === ',') {
-                    context.stage = 'arguments_Id';
-                    continue;
+class Scope extends Array<Scope | instructionToken> {
+    public variables: PrototypeMap;
+
+    constructor() {
+        super();
+        this.variables = new PrototypeMap;
+    }
+}
+
+SandboxedFunction.prototype.run = function (this: SandboxedFunction, ..._parameters: any[]): any {
+    let index: number = -1, instructionToken: instructionToken | undefined, map: PrototypeMap | undefined;
+    const scope: Scope = new Scope(), varhoistedScope: Scope = scope,
+        runContext: any = {stage: "404", objectChain: [],};
+    while (instructionToken = this.context.instructionTokens[++index]) {
+        switch (instructionToken.type) {
+            case "identifier":
+                if (runContext.stage === 'var-decl') {
+                    if (map === undefined) {
+                        throw new InternalSandboxedFunctionError('map is undefined', instructionToken.line, instructionToken.column, instructionToken.index);
+                    }
+                    map.set(instructionToken.value, SandboxedFunction.__undef);
+                } else if (runContext.stage.endsWith('-decl')) {
+                    if (map === undefined) {
+                        throw new InternalSandboxedFunctionError('map is undefined', instructionToken.line, instructionToken.column, instructionToken.index);
+                    }
+                    map.set(instructionToken.value, SandboxedFunction.TemporalDeadZone);
                 }
-            }
-            throw new SyntaxError(`\`,\` expected (got \`${instructionToken.type}\` \`${instructionToken.value}\`) at ${at}`);
-        } else if (context.stage === 'arguments_body{') {
-            if (instructionToken.type === 'delimiter' && instructionToken.value === '{') {
-                context.stage = 'Function.body';
-                continue;
-            }
-            throw new SyntaxError(`\`{\` expected at ${at}`);
+                break;
+            // case "DotAccess":
+            //     runContext.objectChain.push(instructionToken);
+            //     break;
+            // case "delimiter":
+            //     if (instructionToken.value === "(" && runContext.objectChain.length > 0) {
+            //
+            //     }
+            //     break;
+            case "keyword":
+                if ('let, const, class'.split(/, ?/g).includes(instructionToken.value)) {
+                    runContext.stage = `${instructionToken.value}-decl`;
+                    map = scope.variables;
+                } else if (instructionToken.value === 'var') {
+                    runContext.stage = `var-decl`;
+                    map = varhoistedScope.variables;
+                }
+                break;
         }
     }
-    // for (const instructionToken of ) {}
-    return context;
+    return {context: this.context, runContext, map};
 };
 
-function DeepProxy(target: any): object {
-    if (new.target) {
-        throw new TypeError("DeepProxy must be invoked without 'new'");
-    }
-    target = Object(target);
-    const imaginary = new Map(); // Use a Map to handle objects with symbolic keys
-    return new Proxy(target, {
-        get(target: any, prop: any, receiver: unknown): any {
-            if (imaginary.has(prop)) {
-                return imaginary.get(prop);
-            }
-            const value = Reflect.get(target, prop, receiver);
-            // Wrap nested objects in a new DeepProxy
-            if (typeOf(value, typeOf.functionsAreObjects) === 'object') {
-                return DeepProxy(value); // Recursive wrapping
-            }
-            return value;
-        },
-        set(_target: unknown, prop: unknown, value: unknown, _receiver: unknown): boolean {
-            imaginary.set(prop, value); // Store in the imaginary object
-            return true;
-        },
-        has(target: object, prop: string): boolean {
-            return imaginary.has(prop) || Reflect.has(target, prop);
-        },
-        deleteProperty(_target: unknown, prop: unknown): boolean {
-            if (imaginary.has(prop)) {
-                imaginary.delete(prop);
-                return true;
-            }
-            return false;
-        },
-        ownKeys(target: any): any[] {
-            return [...new Set([...Reflect.ownKeys(target), ...imaginary.keys()])];
-        },
-        getOwnPropertyDescriptor(target: any, prop: any) {
-            if (imaginary.has(prop)) {
-                return {
-                    configurable: true,
-                    enumerable: true,
-                    value: imaginary.get(prop),
-                    writable: true,
-                };
-            }
-            return Reflect.getOwnPropertyDescriptor(target, prop);
-        },
-    });
+// function DeepProxy(target: any): object {
+//     if (new.target) {
+//         throw new TypeError("DeepProxy must be invoked without 'new'");
+//     }
+//     target = Object(target);
+//     const imaginary = new Map(); // Use a Map to handle objects with symbolic keys
+//     return new Proxy(target, {
+//         get(target: any, prop: any, receiver: unknown): any {
+//             if (imaginary.has(prop)) {
+//                 return imaginary.get(prop);
+//             }
+//             const value = Reflect.get(target, prop, receiver);
+//             // Wrap nested objects in a new DeepProxy
+//             if (typeOf(value, typeOf.functionsAreObjects) === 'object') {
+//                 return DeepProxy(value); // Recursive wrapping
+//             }
+//             return value;
+//         },
+//         set(_target: unknown, prop: unknown, value: unknown, _receiver: unknown): boolean {
+//             imaginary.set(prop, value); // Store in the imaginary object
+//             return true;
+//         },
+//         has(target: object, prop: string): boolean {
+//             return imaginary.has(prop) || Reflect.has(target, prop);
+//         },
+//         deleteProperty(_target: unknown, prop: unknown): boolean {
+//             if (imaginary.has(prop)) {
+//                 imaginary.delete(prop);
+//                 return true;
+//             }
+//             return false;
+//         },
+//         ownKeys(target: any): any[] {
+//             return [...new Set([...Reflect.ownKeys(target), ...imaginary.keys()])];
+//         },
+//         getOwnPropertyDescriptor(target: any, prop: any) {
+//             if (imaginary.has(prop)) {
+//                 return {
+//                     configurable: true,
+//                     enumerable: true,
+//                     value: imaginary.get(prop),
+//                     writable: true,
+//                 };
+//             }
+//             return Reflect.getOwnPropertyDescriptor(target, prop);
+//         },
+//     });
+// }
+function defaultGlobalThis(): PrototypeMap {
+    const global: Map<string | symbol, any> = new Map<string | symbol, any>();
+
+    // Basic value constructors
+    global.set("Number", Number);
+    global.set("String", String);
+    global.set("Boolean", Boolean);
+    global.set("Symbol", Symbol);
+    global.set("BigInt", BigInt);
+    global.set("Date", Date);
+    global.set("RegExp", RegExp);
+    global.set("Error", Error);
+    global.set("Math", Object.create(Math)); // prevent mutations on global Math
+    global.set("JSON", Object.create(JSON));
+    global.set("SandboxedFunction", Object.create(SandboxedFunction));
+
+    // Typed Arrays
+    global.set("Int8Array", Int8Array);
+    global.set("Uint8Array", Uint8Array);
+    global.set("Uint8ClampedArray", Uint8ClampedArray);
+    global.set("Int16Array", Int16Array);
+    global.set("Uint16Array", Uint16Array);
+    global.set("Int32Array", Int32Array);
+    global.set("Uint32Array", Uint32Array);
+    global.set("Float32Array", Float32Array);
+    global.set("Float64Array", Float64Array);
+    global.set("BigInt64Array", BigInt64Array);
+    global.set("BigUint64Array", BigUint64Array);
+
+    // Utility classes
+    global.set("Map", Map);
+    global.set("Set", Set);
+    global.set("WeakMap", WeakMap);
+    global.set("WeakSet", WeakSet);
+    global.set("Object", Object);
+    global.set("Function", Function);
+    global.set("Reflect", Reflect);
+    global.set("Proxy", Proxy);
+    global.set("Promise", Promise);
+
+    // Globals
+    global.set("Infinity", Infinity);
+    global.set("NaN", NaN);
+    global.set("undefined", undefined);
+    global.set("parseInt", parseInt);
+    global.set("parseFloat", parseFloat);
+    global.set("isFinite", isFinite);
+    global.set("isNaN", isNaN);
+    global.set("encodeURI", encodeURI);
+    global.set("decodeURI", decodeURI);
+    global.set("encodeURIComponent", encodeURIComponent);
+    global.set("decodeURIComponent", decodeURIComponent);
+    global.set("console", Object.create(console)); // safe console
+
+    return new PrototypeMap(global, null);
 }
 
 
-export function typeOf(o: any, mode: number = 0): "NULL" | "Array" | "NaN" | "Date" | "RegExp" | "Promise" | "undefined" | "object" | "boolean" | "number" | "string" | "function" | "symbol" | "bigint" {
-    const t = typeof o;
-    const m = Math.trunc(Number(mode));
-    if (o === null) {
-        return (!(m & (typeOf.NULL_IsObject as number))) ? "NULL" : 'object';
-    }
-    if ((m & typeOf.functionsAreObjects) === typeOf.functionsAreObjects) {
-        if (t === "function") {
-            return "object";
-        }
-    }
-    if ((m & typeOf.checkArraySeperately) === typeOf.checkArraySeperately) {
-        if (Array.isArray(o)) {
-            return "Array";
-        }
-    }
-    if (m & (typeOf.NAN_IS_NAN as number)) {
-        if (Number.isNaN(o)) {
-            return "NaN";
-        }
-    }
-    if (t === 'object') {
-        if (m & (typeOf.identifyRegExp as number)) {
-            if (o instanceof RegExp) return "RegExp";
-        }
-        if (m & (typeOf.identifyDate as number)) {
-            if (o instanceof Date) return "Date";
-        }
-        if (m & (typeOf.identifyPromise as number)) {
-            if (o instanceof Promise) return "Promise";
-        }
-        if (m & (typeOf.identifyVia_constructor as number)) {
-            const value = o;
-            if (value.constructor && value.constructor.name) {
-                return value.constructor.name;
-            }
-        }
-    }
-    if (t === 'undefined' && m & (typeOf.undefinedIsNULL as number)) {
-        return 'NULL';
-    }
-    return t;
-}
+export class PrototypeMap<K = any, V = any> {
+    private readonly map: Map<K, V>;
+    #prototype: PrototypeMap | null = null;
 
-typeOf.identifyVia_constructor = 64;
-typeOf.checkArraySeperately = 1;
-typeOf.functionsAreObjects = 2;
-typeOf.undefinedIsNULL = 256;
-typeOf.identifyPromise = 32;
-typeOf.NULL_IsObject = 128;
-typeOf.identifyRegExp = 8;
-typeOf.identifyDate = 16;
-typeOf.NAN_IS_NAN = 4;
-
-export class PrototypeMap {
-    private readonly map: Map<string | symbol, any>;
-    private prototype: PrototypeMap | null = new PrototypeMap(new Map(), null);
-
-    constructor(map: Map<string | symbol, any> | undefined = undefined, prototype: null | PrototypeMap | undefined = undefined) {
+    constructor(map: Map<K, V> | unknown | undefined = undefined, prototype: PrototypeMap | null | unknown | undefined = undefined) {
         if (map === undefined) map = new Map();
         if (!(map instanceof Map)) {
             throw new TypeError("First argument must be a Map.");
         }
+        prototype = prototype ?? null;
         if (prototype !== null && !(prototype instanceof PrototypeMap)) {
-            throw new TypeError("Second argument must be a PrototypeMap or undefined.");
+            throw new TypeError("Second argument must be a PrototypeMap or null.");
         }
 
         this.map = map;
-        this.prototype = prototype;
+        this.#prototype = prototype;
     }
 
-    valueOf(): Map<string | symbol, any> {
+    valueOf(): Map<K, V> {
         return this.map;
     }
 
@@ -641,10 +732,15 @@ export class PrototypeMap {
         return this.map.toString();
     }
 
-    toJSON(): object {
-        const map: Map<string | symbol, any> = this.map, string: any = {};
+    toJSON(): Record<string | symbol, V> {
+        const map: Map<K, V> = this.map;
+        const string: Record<string | symbol, V> = {};
         for (const [entry, value] of map.entries()) {
-            string[entry] = value;
+            if (typeof entry === 'symbol') {
+                string[entry] = value;
+            } else {
+                string[String(entry)] = value;
+            }
         }
         return string;
     }
@@ -657,51 +753,203 @@ export class PrototypeMap {
         return this.map[Symbol.iterator]();
     }
 
-    set(key: string | symbol, value: any): this {
-        if (typeof key !== "string" && typeof key !== "symbol") {
-            throw new TypeError("Key must be a string or symbol.");
-        }
+    set(key: K, value: V): this {
         this.map.set(key, value);
         return this;
     }
 
-    get(key: string | symbol): any {
-        if (typeof key !== "string" && typeof key !== "symbol") {
-            throw new TypeError("Key must be a string or symbol.");
-        }
+    get(key: K): V | undefined {
         if (this.map.has(key)) {
             return this.map.get(key);
         }
-        return this.prototype ? this.prototype.get(key) : undefined;
+        return this.#prototype ? this.#prototype.get(key) : undefined;
     }
 
-    hasOwn(key: string | symbol): boolean {
-        if (typeof key !== "string" && typeof key !== "symbol") {
-            throw new TypeError("Key must be a string or symbol.");
-        }
+    hasOwn(key: K): boolean {
         return this.map.has(key);
     }
 
     setPrototypeTo(prototype: PrototypeMap | null): this {
-        if (prototype !== null && !(prototype instanceof PrototypeMap)) {
-            throw new TypeError("Argument must be a PrototypeMap or undefined.");
+        if (!(prototype instanceof PrototypeMap) && prototype !== null) {
+            throw new TypeError("Argument must be a PrototypeMap or null.");
         }
-        this.prototype = prototype;
+        if (prototype === this || (prototype && this.hasPrototype(prototype))) {
+            throw new Error("Circular prototype chain detected.");
+        }
+        this.#prototype = prototype;
         return this;
     }
 
     getPrototype(): PrototypeMap | null {
-        return this.prototype;
+        return this.#prototype;
     }
 
-    static create(prototype: PrototypeMap | null): PrototypeMap {
-        if (prototype !== null && !(prototype instanceof PrototypeMap)) {
-            throw new TypeError("Argument must be a PrototypeMap or undefined.");
+    static create<K, V>(prototype: PrototypeMap | null): PrototypeMap<K, V> {
+        if (!(prototype instanceof PrototypeMap) && prototype !== null) {
+            throw new TypeError("Argument must be a PrototypeMap or null.");
         }
-        return new PrototypeMap(new Map(), prototype);
+        return new PrototypeMap<K, V>(new Map(), prototype);
     }
 
     get [Symbol.toStringTag](): 'PrototypeMap' {
         return 'PrototypeMap';
+    }
+
+    private hasPrototype(target: PrototypeMap | null): boolean {
+        let current: PrototypeMap | null = this.#prototype;
+        const seen: Set<PrototypeMap> = new Set();
+        while (current && !seen.has(current)) {
+            if (current === target) return true;
+            seen.add(current);
+            current = current.getPrototype();
+        }
+        return false;
+    }
+}
+
+
+const SandboxedFunctionWrapper_prototypeMap: PrototypeMap = new PrototypeMap(new Map());
+
+export class SandboxedFunctionWrapper extends PrototypeMap {
+    readonly wrappedFunction: Function | SandboxedFunction;
+
+    constructor(wrappedFunction: Function | SandboxedFunction | SandboxedFunctionWrapper) {
+        super(new Map, SandboxedFunctionWrapper_prototypeMap);
+        if (wrappedFunction instanceof Function) {
+            this.wrappedFunction = wrappedFunction;
+        } else if (wrappedFunction instanceof SandboxedFunction) {
+            this.wrappedFunction = wrappedFunction;
+        } else if (wrappedFunction instanceof SandboxedFunctionWrapper) {
+            this.wrappedFunction = wrappedFunction.getWrappedFunction();
+        } else {
+            throw new TypeError('wrappedFunction must be a Function, SandboxedFunction, or SandboxedFunctionWrapper');
+        }
+    }
+
+    getWrappedFunction(): Function | SandboxedFunction {
+        return this.wrappedFunction;
+    }
+}
+
+// function evaluateExpression(tokens: instructionToken[], scope: Record<string, any>): any {
+//     let index = 0;
+//
+//     function next(): instructionToken | undefined {
+//         return tokens[index++];
+//     }
+//
+//     // function peek(): instructionToken | undefined {return tokens[index];}
+//
+//     const stack: any[] = [];
+//     while (index < tokens.length) {
+//         const token = next();
+//         if (token === undefined) break;
+//         switch (token.type) {
+//             case 'number':
+//                 stack.push(Number(token.value));
+//                 break;
+//             case 'BigInt':
+//                 stack.push(BigInt(token.value.slice(0, -1)));
+//                 break;
+//             case 'string':
+//                 stack.push(token.value);
+//                 break;
+//             case 'identifier':
+//                 if (!(token.value in scope)) throw new ReferenceError(`Variable ${token.value} is not defined`);
+//                 stack.push(scope[token.value]);
+//                 break;
+//             case 'operator':
+//                 const right = stack.pop();
+//                 const left = stack.pop();
+//                 switch (token.value) {
+//                     case '+':
+//                         stack.push(left + right);
+//                         break;
+//                     case '-':
+//                         stack.push(left - right);
+//                         break;
+//                     case '*':
+//                         stack.push(left * right);
+//                         break;
+//                     case '/':
+//                         stack.push(left / right);
+//                         break;
+//                     default:
+//                         throw new Error(`Unsupported operator: ${token.value}`);
+//                 }
+//                 break;
+//             default:
+//                 throw new Error(`Unsupported token in expression: ${token.type}`);
+//         }
+//     }
+//
+//     if (stack.length !== 1) {
+//         throw new Error(`Invalid expression`);
+//     }
+//
+//     return stack[0];
+// }
+
+export function toNumeric(value: any, type: "BigInt" | "Number" | null | unknown = null): number | bigint | null {
+    // Handle object conversion
+    if (typeof value === 'object' && value !== null) {
+        // Try Symbol.toPrimitive
+        if (typeof value[Symbol.toPrimitive] === 'function') {
+            value = value[Symbol.toPrimitive]('number');
+            if (typeof value !== 'object' || value === null) {
+                // Continue with primitive
+            } else {
+                throw new TypeError('Cannot convert object to primitive value');
+            }
+        } else {
+            let temp: any;
+            if (value.valueOf !== undefined) {
+                temp = value.valueOf();
+            }
+            if (typeof temp === 'object' && temp !== null) {
+                if (value.toString !== undefined) {
+                    temp = value.toString();
+                }
+                if (typeof temp === 'object' && temp !== null) {
+                    throw new TypeError('Cannot convert object to primitive value');
+                }
+            }
+            value = temp;
+            // // Try valueOf
+            // let temp = value.valueOf();
+            // if (typeof temp !== 'object' || temp === null) {
+            //     value = temp;
+            // } else {
+            //     // Try toString
+            //     temp = value.toString();
+            //     if (typeof temp !== 'object' || temp === null) {
+            //         value = temp;
+            //     } else {
+            //         throw new TypeError('Cannot convert object to primitive value');
+            //     }
+            // }
+        }
+    }
+
+    // At this point, value should be a primitive
+    if (type === 'Number') {
+        return +value; // Unary plus, let errors propagate
+    } else if (type === 'BigInt') {
+        try {
+            return BigInt(value);
+        } catch (e) {
+            if (e instanceof TypeError) {
+                throw e; // Rethrow TypeError
+            } else if (e instanceof SyntaxError) {
+                return null; // Return null for SyntaxError
+            }
+            throw e; // Rethrow other errors
+        }
+    } else {
+        // Default case: return BigInt as-is, others get unary plus
+        if (typeof value === 'bigint') {
+            return value;
+        }
+        return +value; // Unary plus, let errors propagate
     }
 }

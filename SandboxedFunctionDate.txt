@@ -1,0 +1,262 @@
+"use strict";
+import {Datetime_global} from 'datetime_global/Datetime_global.js';
+import {Temporal} from 'temporal-polyfill';
+
+type SandboxedFunctionDate = {
+    run(): Temporal.ZonedDateTime | Temporal.Instant | Date | Datetime_global | TimeTypes | void | undefined | string;
+    instructionTokens: instructionToken[];
+};
+
+interface SandboxedFunctionDate_constructor {
+
+    prototype: SandboxedFunctionDate;
+
+    new(dateScript: string): SandboxedFunctionDate;
+
+    (dateScript: string): string;
+
+    __tokenize(javascript: string): instructionToken[];
+}
+
+type instructionToken = {
+    type: "keyword" | "comment" | "identifier" | "FullDate" | "Instant" | "PlainDate" | "PlainTime" | "Duration" | "PlainDateTime" | "operator" | "delimiter" | "whitespace" | "DotAccess" | "BigInt" | string,
+    value: string, delimiter?: string, jsCode?: string, regexp?: RegExp,
+    templatalExpressions?: ({ type: "literal" | "expression", value: string })[],
+    flags?: string,
+    // index?: number, line?: number, column?: number,
+    index: number, line: number, column: number,
+};
+export const SandboxedFunctionDate: SandboxedFunctionDate_constructor = function (this: SandboxedFunctionDate, dateScript: string): void | SandboxedFunctionDate | string {
+    const self: SandboxedFunctionDate = new.target ? this : Object.create(SandboxedFunctionDate.prototype);
+    self.instructionTokens = SandboxedFunctionDate.__tokenize(dateScript);
+    if (!new.target) return self;
+} as SandboxedFunctionDate_constructor;
+SandboxedFunctionDate.__tokenize = function (dateScript: string): instructionToken[] {
+    let index: number = 0, line: number = 0, column: number = 0,
+        dsCode: string = (function (string: string): string {
+            return String(string).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        })(String(dateScript));
+    //keywords=/\b(?:if|else|return|function|var|let|const|for|while|true|false|null)\b/
+    const fullDate: RegExp = /\bF\d{4}(?:-\d{2}(?:-\d{2}(?:[Tt]\d{2}(?::\d{2}(?::\d{2}(?:\.\d{1,9})?)?)?)?)?)?(?:\[[a-zA-Z]+(?:\/[a-zA-Z]+)?]|[+\-]\d{2}:?\d{2}|[Zz])?/,
+        Instant: RegExp = /\bI(?:\d{4}(?:-\d{2}(?:-\d{2}(?:[Tt]\d{2}(?::\d{2}(?::\d{2}(?:\.\d{1,9})?)?)?)?)?)?(?:\[[a-zA-Z]+(?:\/[a-zA-Z]+)?]|[+\-]\d{2}:?\d{2}|[Zz])?|@\d+)/,
+        plainDate: RegExp = /\bY(?:\d{4}(?:-\d{2}(?:-\d{2})?)?)?/,
+        plainTime: RegExp = /\bT(?:\d{2}(?::\d{2}(?::\d{2})?)?)?/,
+        plainDateTime: RegExp = /\bY\d{4}(?:-\d{2}(?:-\d{2}(?:[Tt]\d{2}(?::\d{2}(?::\d{2})?)?)?)?)?(?:\[[a-zA-Z]\/[a-zA-Z]]|[+\-]\d{2}:?\d{2}|[Zz])?/,
+        duration: RegExp = /\b[+\-]?P(?:\d+Y)?(?:(?:\d+M)?(?:\d+D)?|(?:\d+W)?)(?:T(?:\d+H)?(?:\d+[IiM])?(?:\d+S(?:\.\d{,9})?)?)?/;
+    const tokens: any[] = [], regexPatterns: ({ type: string, regex: RegExp })[] = [
+        {type: "keyword", regex: /\breturn\b/,},
+        {type: "comment", regex: /\/\/.*|\/\*[\s\S]*?\*\//},
+        {type: "identifier", regex: /\$[a-zA-Z_][a-zA-Z0-9_]*\b/},
+
+        {type: "FullDate", regex: fullDate},
+        {type: "Instant", regex: Instant},
+        {type: "PlainDate", regex: plainDate},
+        {type: "PlainTime", regex: plainTime},
+        {type: "Duration", regex: duration},
+        {type: "PlainDateTime", regex: plainDateTime},
+
+        {type: "operator", regex: /[+\-*/=<>!&|]+/},
+        {type: "delimiter", regex: /[{}\[\]();,]/},
+        {type: "whitespace", regex: /\s+/},
+        {type: "DotAccess", regex: /\.\b[a-zA-Z_][a-zA-Z0-9_]*\b/},
+        {type: "BigInt", regex: /\b(?:0[xXoObB])?\d+n\b/},
+    ], keepRegExp = function (regex: RegExp, string: string): string {
+        const matchArray = string.match(regex);
+        return (matchArray ?? [''])[0];
+    };
+    while (dsCode.length > 0) {
+        let match: instructionToken | null = null, slice: boolean = true;
+        const regexpArray = dsCode.match(/^(['"`\/])(?!\/)/);
+        if (regexpArray && !/\/\*/.test(dsCode)) {
+            let length: number = 0, backslashed: boolean = false, skip: number = 0;
+            const array: string[] = [], delimiter: string = regexpArray[1];
+            for (const strx of dsCode.slice(1)) {
+                if (++length > dsCode.length) {
+                    throw new Error(`Unfinished String`);
+                }
+                if (skip > 0) {
+                    skip--;
+                    continue;
+                }
+                if (/^[\\'"`\/]$/.test(strx)) {
+                    if (strx === delimiter && !backslashed) {
+                        break;
+                    } else if (strx === '\\') {
+                        backslashed = !backslashed;
+                        array.push(strx);
+                    } else {
+                        array.push(strx);
+                    }
+                } else if (strx === '\n' || strx === '\r') {
+                    if (delimiter === '\'' || delimiter === "\"") {
+                        throw new Error('string literal contains an unescaped line break');
+                    } else {
+                        array.push(strx);
+                    }
+                } else {
+                    array.push(strx);
+                }
+                backslashed = false;
+            }
+            if (length === 0) {
+                throw new Error(`0-length String`);
+            }
+            dsCode = dsCode.slice(length + 1);
+            const value = array.join('');
+            if (delimiter === '\'' || delimiter === "\"") {
+                match = {type: 'string', value, delimiter, index, line, column};
+            } else if (delimiter === '/') {
+                const flags: string = keepRegExp(/^[dgimsuvy]+/, dsCode),
+                    regexp: RegExp & { toJSON?: Function } = new RegExp(value.slice(0, value.length - 1), flags);
+                dsCode = dsCode.slice(flags.length);
+                regexp.toJSON = regexp.toString;
+                match = {type: 'RegExp', value, delimiter, flags, regexp, index, line, column};
+            } else {
+                throw new Error(`Unknown Demiliter At: \`\`\`${dsCode.slice(0, 10)}\`\`\``);
+            }
+            slice = false;
+        } else {
+            for (const {type, regex} of regexPatterns) {
+                const result = regex.exec(dsCode);
+                if (result && result.index === 0) {
+                    match = {type, value: result[0], index, line, column};
+                    break;
+                }
+            }
+        }
+        if (!match) {
+            throw new Error(`Unrecognized token at: \`\`\`${dsCode.slice(0, 10)}\`\`\``);
+        }
+        let offset = 0, string = String(match.value);
+        index += string.length;
+        if (/\n/.test(string)) {
+            column = 0;
+            line += 1;
+            column += string.replace(/.+\n/, '').length;
+        } else {
+            column += string.length;
+        }
+        if (match.type === 'DotAccess') {
+            match.value = String(match.value).replace(/^\./, '');
+            offset++;
+        }
+        tokens.push(match);
+        if (slice) dsCode = dsCode.slice(match.value.length + offset);
+    }
+    return tokens;
+};
+type plainTemporalTypes =
+    Temporal.PlainDate
+    | Temporal.PlainDateTime
+    | Temporal.PlainTime
+    | Temporal.PlainMonthDay
+    | Temporal.PlainYearMonth;
+type TemporalTypes = plainTemporalTypes | Temporal.ZonedDateTime | Temporal.Instant | Temporal.Duration;
+type TimeTypes = TemporalTypes | Datetime_global | Date;
+type contexxt = {
+    returned: boolean,
+    variables: Map<string, any>,
+    contextValueChain: (string | symbol | TimeTypes)[],
+    parameters: (string | symbol | TimeTypes)[],
+};
+SandboxedFunctionDate.prototype.run = function (this: SandboxedFunctionDate):
+    Temporal.ZonedDateTime | Temporal.Instant | Date | Datetime_global | TimeTypes | void | undefined | string {
+    const context: contexxt = {
+            returned: false, variables: new Map(),
+            contextValueChain: [], parameters: [],
+        }, tyipf: RegExp = /[TYIPF]/,
+        invalid: symbol = Symbol.for('Invalid');
+    let index: number = -1, instructionToken: undefined | instructionToken;
+    while (instructionToken = this.instructionTokens[++index]) {
+        const toParse: string = instructionToken.value.replace(tyipf, '');
+        switch (instructionToken.type) {
+            case "keyword":
+                if (instructionToken.value === 'return') {
+                    context.returned = true;
+                }
+                break;
+            case "delimiter":
+                if (instructionToken.value === ';' && context.returned) {
+                    // return new Datetime_global(context.contextValue);
+                    const returnValue: string | symbol | TimeTypes = context.contextValueChain[context.contextValueChain.length - 1];
+                    if (returnValue === invalid) {
+                        throw new TypeError('Attempt to return Invalid TimeInstance');
+                    } else if (typeof returnValue === 'symbol') {
+                        throw new TypeError('Attempt to return Symbol');
+                    }
+                    return returnValue;
+                } else if (instructionToken.value === '(') {
+                    context.parameters.length = 0;
+                }
+                break;
+            case "DotAccess":
+                context.contextValueChain.push(instructionToken.value);
+                // switch (instructionToken.value) {case "toInstant":
+                //context.contextValue = context.contextValue.toInstant();}
+                break;
+            case "FullDate":
+            case "Instant": {
+                let contextValue;
+                if (toParse.startsWith('@')) {
+                    contextValue = Temporal.Instant.fromEpochNanoseconds(BigInt(toParse.slice(1)));
+                } else {
+                    const dateTimeRegex: RegExp = /(\d{4})(-\d{2})?(-\d{2})?(?:[Tt](\d{2})(:\d{2})?(:\d{2})?(\.\d{1,9})?)?(\[[a-zA-Z]+(?:\/[a-zA-Z]+)?]|[+\-]\d{2}:?\d{2}|[Zz])?/;
+                    const match: RegExpMatchArray | null = toParse.match(dateTimeRegex);
+                    if (match !== null) {
+                        contextValue = Temporal.ZonedDateTime.from(`${match[1]}${match[2] ?? '-01'}${match[3] ?? '-01'}T${match[4] ?? '00'}${match[5] ?? ':00'}${match[6] ?? ':00'}${match[7] ?? '.000'}${match[8] ?? '[UTC]'}`);
+                        if (instructionToken.type === 'Instant') {
+                            contextValue = Temporal.Instant.fromEpochNanoseconds(contextValue.epochNanoseconds);
+                        }
+                    } else {
+                        contextValue = invalid;
+                    }
+                }
+                context.contextValueChain.length = 0;
+                context.contextValueChain.push(contextValue);
+            }
+                break;
+            case "PlainDateTime": {
+                const dateTimeRegex: RegExp = /(\d{4})(-\d{2})?(-\d{2})?(?:[Tt](\d{2})(:\d{2})?(:\d{2})?(\.\d{1,9})?)?/;
+                const match: RegExpMatchArray | null = toParse.match(dateTimeRegex);
+                if (match !== null) {
+                    context.contextValueChain.length = 0;
+                    context.contextValueChain.push(Temporal.PlainDateTime.from(`${match[1]}${match[2] ?? '-01'}${match[3] ?? '-01'}T${match[4] ?? '00'}${match[5] ?? ':00'}${match[6] ?? ':00'}${match[7] ?? '.000'}`));
+                } else {
+                    context.contextValueChain.length = 0;
+                    context.contextValueChain.push(invalid);
+                }
+            }
+                break;
+            case "PlainTime": {
+                const dateTimeRegex: RegExp = /(\d{2})(:\d{2})?(:\d{2})?(\.\d{1,9})?/;
+                const match: RegExpMatchArray | null = toParse.match(dateTimeRegex);
+                if (match !== null) {
+                    context.contextValueChain.length = 0;
+                    context.contextValueChain.push(Temporal.PlainTime.from(`${match[1] ?? '00'}${match[2] ?? ':00'}${match[3] ?? ':00'}${match[4] ?? '.000'}`));
+                } else {
+                    context.contextValueChain.length = 0;
+                    context.contextValueChain.push(invalid);
+                }
+            }
+                break;
+            case "PlainDate": {
+                const dateTimeRegex: RegExp = /(\d{4})(-\d{2})(-\d{2})?/;
+                const match: RegExpMatchArray | null = toParse.match(dateTimeRegex);
+                if (match !== null) {
+                    context.contextValueChain.length = 0;
+                    context.contextValueChain.push(Temporal.PlainDate.from(`${match[1] ?? '00'}${match[2] ?? '-00'}${match[3] ?? '-00'}`));
+                } else {
+                    context.contextValueChain.length = 0;
+                    context.contextValueChain.push(invalid);
+                }
+            }
+                break;
+            case "Duration": {
+                // throw new InternalSandboxedFunctionError('Duration');
+                context.contextValueChain.length = 0;
+                context.contextValueChain.push(Temporal.Duration.from(instructionToken.value));
+                break;
+            }
+        }
+    }
+};
