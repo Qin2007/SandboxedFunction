@@ -1,3 +1,6 @@
+// javascript
+export const __undef = Symbol.for('__undef');
+export const TemporalDeadZone = Symbol('TemporalDeadZone');
 export const SandboxedFunction = function (javascript, globalObject) {
     const self = new.target ? this : Object.create(SandboxedFunction.prototype);
     self.instructionTokens = SandboxedFunction.__tokenize(javascript);
@@ -5,105 +8,297 @@ export const SandboxedFunction = function (javascript, globalObject) {
         globalObject = Object.assign(defaultGlobalThis(), convertToPrototypeMap(globalObject));
     }
     self.globalObject = Object(globalObject);
-    self.context = (function () {
-        const context = {
-            stage: '404', currentObject: null, functions: {}, instructionTokens: [],
-        }, instructionTokens = this.instructionTokens;
-        let index = -1;
-        while (++index < instructionTokens.length) {
-            const instructionToken = instructionTokens[index], at = `(line:${instructionToken.line}, column:${instructionToken.column}, (index:${instructionToken.index}))`;
-            if (context.currentObject !== null && context.currentObject.type === 'function') {
-                context.currentObject.asStringArray.push(instructionToken.value);
-            }
-            else {
-                context.instructionTokens.push(instructionToken);
-            }
-            if (context.stage === 'Function.body') {
-                if (context.currentObject === null) {
-                    throw new InternalSandboxedFunctionError('context.currentObject is null ', instructionToken.line, instructionToken.column, instructionToken.index);
-                }
-                context.currentObject.body.push(instructionToken);
-                if (instructionToken.type === 'delimiter' && instructionToken.value === '}') {
-                    context.stage = '404';
-                    context.currentObject.asString = context.currentObject.asStringArray.join('');
-                    context.functions[context.currentObject.name] = context.currentObject;
-                    context.currentObject.asStringArray.length = 0;
-                    context.currentObject = null;
-                }
-                continue;
-            }
-            if (instructionToken.type === 'whitespace') {
-                // empty
-            }
-            else if (instructionToken.type === 'keyword' && context.stage === '404' && instructionToken.value === 'return') {
-            }
-            else if (instructionToken.type === 'keyword' && context.stage === '404' && instructionToken.value === 'function') {
-                context.stage = 'Function.name';
-                context.currentObject = {
-                    type: 'function',
-                    name: `Function${Date.now()}`,
-                    parameters: [],
-                    body: [],
-                    asStringArray: ['function']
-                };
-                context.instructionTokens.pop();
-            }
-            else if (context.stage === 'Function.name') {
-                if (instructionToken.type !== 'identifier') {
-                    throw new SyntaxError(`identifier expected (got \`${instructionToken.type}\`) at ${at}`);
-                }
-                if (context.currentObject === null) {
-                    throw new InternalSandboxedFunctionError('context.currentObject is null ', instructionToken.line, instructionToken.column, instructionToken.index);
-                }
-                context.currentObject.name = instructionToken.value;
-                context.stage = 'arguments(';
-            }
-            else if (context.stage === 'arguments(') {
-                if (instructionToken.type !== 'delimiter' && instructionToken.value !== '(') {
-                    throw new SyntaxError(`\`(\` expected (got \`${instructionToken.type}\`) at ${at}`);
-                }
-                context.stage = 'arguments_Id';
-            }
-            else if (context.stage === 'arguments_Id') {
-                if (instructionToken.value === ')') {
-                    context.stage = 'arguments_body{';
-                    continue;
-                }
-                else if (instructionToken.type !== 'identifier') {
-                    throw new SyntaxError(`identifier expected (got \`${instructionToken.type}\`) at ${at}`);
-                }
-                if (context.currentObject === null) {
-                    throw new InternalSandboxedFunctionError('context.currentObject is null ', instructionToken.line, instructionToken.column, instructionToken.index);
-                }
-                context.currentObject.parameters.push(instructionToken.value);
-                context.stage = 'arguments,';
-            }
-            else if (context.stage === 'arguments,') {
-                if (instructionToken.value === ')') {
-                    context.stage = 'arguments_body{';
-                    continue;
-                }
-                if (instructionToken.type === 'delimiter' && (instructionToken.value === ',' || instructionToken.value === ')')) {
-                    if (instructionToken.value === ',') {
-                        context.stage = 'arguments_Id';
-                        continue;
-                    }
-                }
-                throw new SyntaxError(`\`,\` expected (got \`${instructionToken.type}\` \`${instructionToken.value}\`) at ${at}`);
-            }
-            else if (context.stage === 'arguments_body{') {
-                if (instructionToken.type === 'delimiter' && instructionToken.value === '{') {
-                    context.stage = 'Function.body';
-                    continue;
-                }
-                throw new SyntaxError(`\`{\` expected at ${at}`);
-            }
-        }
-        return context;
-    }).call(self);
-    self.executableTokens = self.context.instructionTokens;
+    // instructionTokenList
+    self.instructionTokens = applyASI(self.instructionTokens);
+    // self.context = (function (this: SandboxedFunction): context {
+    //     const context: context = {
+    //         stage: '404', currentObject: null, functions: {}, instructionTokens: [],
+    //     }, instructionTokens: instructionToken[] = this.instructionTokens;
+    //     let index: number = -1;
+    //     while (++index < instructionTokens.length) {
+    //         const instructionToken: instructionToken = instructionTokens[index],
+    //             at: string = `(line:${instructionToken.line}, column:${instructionToken.column}, (index:${instructionToken.index}))`;
+    //         if (context.currentObject !== null && context.currentObject.type === 'function') {
+    //             context.currentObject.asStringArray.push(instructionToken.value);
+    //         } else {
+    //             context.instructionTokens.push(instructionToken);
+    //         }
+    //         if (context.stage === 'Function.body') {
+    //             if (context.currentObject === null) {
+    //                 throw new InternalSandboxedFunctionError('context.currentObject is null ', instructionToken);
+    //             }
+    //             context.currentObject.body.push(instructionToken);
+    //             if (instructionToken.type === 'delimiter' && instructionToken.value === '}') {
+    //                 context.stage = '404';
+    //                 context.currentObject.asString = context.currentObject.asStringArray.join('');
+    //                 context.functions[context.currentObject.name] = context.currentObject;
+    //                 context.currentObject.asStringArray.length = 0;
+    //                 context.currentObject = null;
+    //             }
+    //             continue;
+    //         }
+    //         if (instructionToken.type === 'whitespace') {
+    //             // empty
+    //         } else if (instructionToken.type === 'keyword' && context.stage === '404' && instructionToken.value === 'return') {
+    //
+    //         } else if (instructionToken.type === 'keyword' && context.stage === '404' && instructionToken.value === 'function') {
+    //             context.stage = 'Function.name';
+    //             context.currentObject = {
+    //                 type: 'function',
+    //                 name: `Function${Date.now()}`,
+    //                 parameters: [],
+    //                 body: [],
+    //                 asStringArray: ['function']
+    //             };
+    //             context.instructionTokens.pop();
+    //         } else if (context.stage === 'Function.name') {
+    //             if (instructionToken.type !== 'identifier') {
+    //                 throw new SyntaxError(`identifier expected (got \`${instructionToken.type}\`) at ${at}`);
+    //             }
+    //             if (context.currentObject === null) {
+    //                 throw new InternalSandboxedFunctionError('context.currentObject is null ', instructionToken);
+    //             }
+    //             context.currentObject.name = instructionToken.value;
+    //             context.stage = 'arguments(';
+    //         } else if (context.stage === 'arguments(') {
+    //             if (instructionToken.type !== 'delimiter' && instructionToken.value !== '(') {
+    //                 throw new SyntaxError(`\`(\` expected (got \`${instructionToken.type}\`) at ${at}`);
+    //             }
+    //             context.stage = 'arguments_Id';
+    //         } else if (context.stage === 'arguments_Id') {
+    //             if (instructionToken.value === ')') {
+    //                 context.stage = 'arguments_body{';
+    //                 continue;
+    //             } else if (instructionToken.type !== 'identifier') {
+    //                 throw new SyntaxError(`identifier expected (got \`${instructionToken.type}\`) at ${at}`);
+    //             }
+    //             if (context.currentObject === null) {
+    //                 throw new InternalSandboxedFunctionError('context.currentObject is null ', instructionToken);
+    //             }
+    //             context.currentObject.parameters.push(instructionToken.value);
+    //             context.stage = 'arguments,';
+    //         } else if (context.stage === 'arguments,') {
+    //             if (instructionToken.value === ')') {
+    //                 context.stage = 'arguments_body{';
+    //                 continue;
+    //             }
+    //             if (instructionToken.type === 'delimiter' && (instructionToken.value === ',' || instructionToken.value === ')')) {
+    //                 if (instructionToken.value === ',') {
+    //                     context.stage = 'arguments_Id';
+    //                     continue;
+    //                 }
+    //             }
+    //             throw new SyntaxError(`\`,\` expected (got \`${instructionToken.type}\` \`${instructionToken.value}\`) at ${at}`);
+    //         } else if (context.stage === 'arguments_body{') {
+    //             if (instructionToken.type === 'delimiter' && instructionToken.value === '{') {
+    //                 context.stage = 'Function.body';
+    //                 continue;
+    //             }
+    //             throw new SyntaxError(`\`{\` expected at ${at}`);
+    //         }
+    //     }
+    //     return context;
+    // }).call(self);
+    //self.executableTokens = self.context.instructionTokens;
     if (!new.target)
         return self.toHTMLString();
+};
+// const applyASI = function (tokens: instructionToken[]): instructionToken[] {
+//     const resultTokens: instructionToken[] = [], makeVirtualSemicolon = function (at: instructionToken) {
+//         const index: number = at.index, line: number = at.line, column: number = at.column;
+//         return ({type: "delimiter", value: ";", index, line, column, autoInserted: true,});
+//     };
+//     let i = 0;
+//
+//     // Helper to check if a token is separated by a LineTerminator
+//     const hasLineTerminator = (current: instructionToken, next: instructionToken): boolean => {
+//         for (let j = i; j < tokens.length - 1; j++) {
+//             if (tokens[j] === current && tokens[j + 1] === next) {
+//                 // Check if any token between current and next is whitespace with a newline
+//                 for (let k = j; k < tokens.length && tokens[k] !== next; k++) {
+//                     if (tokens[k].type === 'whitespace' && /\n/.test(tokens[k].value)) {
+//                         return true;
+//                     }
+//                 }
+//                 return false;
+//             }
+//         }
+//         return false;
+//     };
+//
+//     // Helper to check if a token is part of a do-while statement
+//     const isDoWhileContext = (tokens: instructionToken[], index: number): boolean => {
+//         // Look backward for a 'do' keyword and a 'while' keyword after the current token
+//         let doFound = false;
+//         for (let j = index - 1; j >= 0; j--) {
+//             if (tokens[j].type === 'keyword' && tokens[j].value === 'do') {
+//                 doFound = true;
+//                 break;
+//             }
+//         }
+//         if (!doFound) return false;
+//         for (let j = index + 1; j < tokens.length; j++) {
+//             if (tokens[j].type === 'keyword' && tokens[j].value === 'while') {
+//                 return true;
+//             }
+//         }
+//         return false;
+//     };
+//
+//     while (i < tokens.length) {
+//         const current = tokens[i];
+//         const next = tokens[i + 1];
+//
+//         resultTokens.push(current);
+//
+//         // Skip ASI for whitespace and comments, but track them for LineTerminator
+//         if (current.type === 'whitespace' || current.type === 'comment') {
+//             i++;
+//             continue;
+//         }
+//
+//         // ASI Rule 1: Offending token
+//         if (next) {
+//             // Check if next token is an offending token (simplified: any token that can't follow current)
+//             const isOffending = (
+//                 // Tokens that typically end statements
+//                 (['identifier', 'number', 'string', 'TemplateLiteral', 'RegExp', 'BigInt', 'DotAccess'].includes(current.type) &&
+//                     !['operator', 'delimiter', 'DotAccess'].includes(next.type)) ||
+//                 // Keywords that end statements
+//                 (current.type === 'keyword' && ['return', 'break', 'continue', 'throw'].includes(current.value)) ||
+//                 // Closing parenthesis in potential do-while
+//                 (current.type === 'delimiter' && current.value === ')')
+//             );
+//
+//             if (
+//                 isOffending &&
+//                 (
+//                     // Sub-rule 1: Separated by LineTerminator
+//                     hasLineTerminator(current, next) ||
+//                     // Sub-rule 2: Next token is '}'
+//                     (next.type === 'delimiter' && next.value === '}') ||
+//                     // Sub-rule 3: After ')' in do-while context
+//                     (current.type === 'delimiter' && current.value === ')' && isDoWhileContext(tokens, i))
+//                 )
+//             ) {
+//                 resultTokens.push(makeVirtualSemicolon(current));
+//             }
+//         }
+//
+//         // ASI Rule 2: End of input
+//         if (!next && ['identifier', 'number', 'string', 'TemplateLiteral', 'RegExp', 'BigInt', 'DotAccess'].includes(current.type)) {
+//             resultTokens.push(makeVirtualSemicolon(current));
+//         }
+//
+//         // ASI Rule 3: Restricted productions (e.g., [no LineTerminator here])
+//         if (next && (
+//             // After return, break, continue, throw
+//             (current.type === 'keyword' && ['return', 'break', 'continue', 'throw'].includes(current.value)) ||
+//             // After postfix ++/--
+//             (current.type === 'operator' && ['++', '--'].includes(current.value))
+//         )) {
+//             if (hasLineTerminator(current, next)) {
+//                 resultTokens.push(makeVirtualSemicolon(current));
+//             }
+//         }
+//
+//         i++;
+//     }
+//
+//     // Filter out whitespace and comment tokens if not needed in final output
+//     return resultTokens//.filter(token => token.type !== 'whitespace' && token.type !== 'comment');
+// };
+const applyASI = function (instructionTokens) {
+    const instructionTokenList = [], makeVirtualSemicolon = function (at) {
+        const index = at.index, line = at.line, column = at.column;
+        return ({ type: "delimiter", value: ";", index, line, column, autoInserted: true, });
+    }, /* isStatementTerminated = function (currentIndex: number): boolean {
+        let semicolonEncountered: boolean = false;
+        for (const instructionToken of instructionTokens.slice(0, currentIndex + 1).reverse()) {
+            semicolonEncountered = (instructionToken.type === "delimiter" && instructionToken.value === ';') || semicolonEncountered;
+        }
+        return semicolonEncountered;
+    }, nextNonWhitespace = function (currentIndex: number): number {
+        let index: number = currentIndex;
+        for (const instructionToken of instructionTokens.slice(currentIndex)) {
+            if (instructionToken.type !== "whitespace") {
+                return index;
+            }
+            index++;
+        }
+        return NaN;
+    },*/ bracketStack = [], testIsLiteral = function (instructionToken) {
+        return 'string,number,BigInt,RegExp,TemplateLiteral,operator'.split(/,/g).includes(instructionToken.type) ||
+            (instructionToken.type === "keyword" && /^(?:true|false|null|typeof|void|yield|this|new)$/.test(instructionToken.value));
+    }, variables = new Map();
+    let i = -1, instructionToken, declWith = undefined, // lastInsertedSemicolon: number = i,
+    expectationStage = 'statement';
+    while (instructionToken = instructionTokens[++i]) {
+        const current = instructionToken, next = instructionTokens[i + 1];
+        // Rule 2: Before a closing }
+        if (instructionToken.type === "delimiter" && instructionToken.value === '}') {
+            instructionTokenList.push(makeVirtualSemicolon(current), instructionToken);
+            continue;
+        }
+        if (instructionToken.type === "delimiter" && instructionToken.value === ';') {
+            if (bracketStack.length > 0) {
+                throw SandboxedFunctionSyntaxError.fromInstructionToken('brackets arent closed', instructionToken);
+            }
+            // lastInsertedSemicolon = i;
+        }
+        else if (instructionToken.type === "delimiter" && instructionToken.value === '{') {
+            bracketStack.push('block');
+        }
+        if (testIsLiteral(instructionToken)) {
+            expectationStage = "expressionStatement";
+        }
+        if (instructionToken.type === "keyword" && instructionToken.value === 'var' || instructionToken.value === 'let' || instructionToken.value === 'const') {
+            if (expectationStage !== 'statement') {
+                expectationStage = "vari-name";
+                declWith = instructionToken.value;
+                instructionTokenList.push(instructionToken);
+                continue;
+            }
+        }
+        if (expectationStage === 'vari-name') {
+            if (instructionToken.type !== "identifier") {
+                throw SandboxedFunctionSyntaxError.fromInstructionToken('after let, const, or var avariable  name must be provided', instructionToken);
+            }
+            if (declWith === 'var') {
+                variables.set(instructionToken.value, __undef);
+            }
+            else {
+                variables.set(instructionToken.value, TemporalDeadZone);
+            }
+            instructionTokenList.push(instructionToken);
+            expectationStage = 'expression';
+            continue;
+        }
+        if (instructionToken.type === "whitespace" && instructionToken.value.includes('\n') && next) {
+            if (testIsLiteral(next)) {
+                expectationStage = 'statement';
+                // lastInsertedSemicolon = i;
+            }
+        }
+        // if (instructionToken.type === "whitespace" && instructionToken.value.includes('\n') && !isStatementTerminated(i))
+        // {const the_nextNonWhitespace = nextNonWhitespace(i);if (!Number.isNaN(the_nextNonWhitespace)) {
+        // if (!'[+-*/.('.split(new RegExp('')).includes(instructionTokens[the_nextNonWhitespace].value)) {
+        // instructionTokenList.push(makeVirtualSemicolon(current), instructionToken);continue;}}}
+        instructionTokenList.push(instructionToken);
+        // Rule 1: Line break after return/break/continue/throw
+        if (current.type === "keyword" && ["return", "break", "continue", "throw"].includes(current.value)) {
+            if (next && next.value.includes('\n')) {
+                instructionTokenList.push(makeVirtualSemicolon(next));
+            }
+        }
+    }
+    const nan = { index: NaN, line: NaN, column: NaN }, last_instructionToken = instructionTokenList.at(-1) ?? nan, index = last_instructionToken.index, line = last_instructionToken.line, column = last_instructionToken.column;
+    instructionTokenList.push({
+        type: "delimiter", value: ";", index,
+        line, column, autoInserted: true,
+    });
+    instructionTokenList.forEach(t => console.log(t));
+    return instructionTokenList; //{instructionTokenList, variables};
 };
 SandboxedFunction.SandboxedFunctionHTMLClass = 'SandFunc_';
 SandboxedFunction.prototype.toHTMLString = function () {
@@ -128,6 +323,10 @@ SandboxedFunction.prototype.toHTMLString = function () {
                 break;
             case "operator":
             case "delimiter":
+                if (instructionToken.value === ';' && instructionToken.autoInserted) {
+                    result.push(`<span class=${id}autoIns>;</span>`);
+                    break;
+                }
                 result.push(`<span class=${id}delimiter>${htmlencode(instructionToken.value)}</span>`);
                 break;
             case "whitespace":
@@ -173,26 +372,21 @@ SandboxedFunction.prototype.toHTMLString = function () {
     }
     return `<pre class=${id}outerHTML role=none><code>${result.join('')}</code></pre>`;
 };
-SandboxedFunction.__undef = Symbol('__undef');
-SandboxedFunction.TemporalDeadZone = Symbol('TemporalDeadZone');
+SandboxedFunction.__undef = __undef;
 SandboxedFunction.__tokenize = function (javascript) {
     let index = 0, line = 0, column = 0, jsCode = (function (string) {
         return String(string).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     })(String(javascript));
     //keywords=/\b(?:if|else|return|function|var|let|const|for|while|true|false|null)\b/
-    const keywords = /\b(?:if|else|switch|case|default|for|while|do|break|continue|return|throw|try|catch|finally|var|let|const|function|class|extends|super|this|new|delete|import|export|from|static|true|false|null|typeof|instanceof|void|yield|with|debugger|in|of)\b/;
+    const keywords = /\b(?:if|else|switch|case|default|for|while|do|break|continue|return|throw|try|catch|finally|var|let|const|function|class|extends|super|this|new|delete|import|export|from|static|true|false|null|typeof|instanceof|void|yield|with|debugger|in|of)\b/, number = /^[+-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?|0[xX][\da-fA-F]+|0[oO][0-7]+|0[bB][01]+$/;
     //=/^[+-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?|0[xX][\da-fA-F]+|0[oO][0-7]+|0[bB][01]+$/
     const tokens = [], regexPatterns = [
         { type: "keyword", regex: keywords, },
         { type: "comment", regex: /\/\/.*|\/\*[\s\S]*?\*\// },
         { type: "identifier", regex: /\b[a-zA-Z_][a-zA-Z0-9_]*\b/ },
         // {type: "number", regex: /\b\d+(\.\d+)?\b/},
-        {
-            type: "number",
-            regex: /^[+-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?|0[xX][\da-fA-F]+|0[oO][0-7]+|0[bB][01]+$/
-        },
-        { type: "operator", regex: /[+\-*/=<>!&|]+/ },
-        { type: "operator", regex: /[?:]+/ },
+        { type: "number", regex: number },
+        { type: "operator", regex: /[+\-*/=<>!&|?:]+/ },
         { type: "delimiter", regex: /[{}\[\]();,]/ },
         { type: "whitespace", regex: /\s+/ },
         { type: "DotAccess", regex: /\.\b[a-zA-Z_][a-zA-Z0-9_]*\b/ },
@@ -375,7 +569,7 @@ SandboxedFunction.__tokenize = function (javascript) {
                 };
             }
             else {
-                throw new Error(`Unknown Demiliter At: \`\`\`${jsCode.slice(0, 10)}\`\`\``);
+                throw new SandboxedFunctionSyntaxError(`Unknown Demiliter At: \`\`\`${jsCode.slice(0, 10)}\`\`\``, index, line, column);
             }
             slice = false;
         }
@@ -389,7 +583,7 @@ SandboxedFunction.__tokenize = function (javascript) {
             }
         }
         if (!match) {
-            throw new Error(`Unrecognized token at: \`\`\`${jsCode.slice(0, 10)}\`\`\``);
+            throw new SandboxedFunctionSyntaxError(`Unrecognized token at: \`\`\`${jsCode.slice(0, 10)}\`\`\``, index, line, column);
         }
         let offset = 0, string = String(match.value);
         index += string.length;
@@ -487,6 +681,9 @@ SandboxedFunction.style = SandboxedFunction.styletag = `<style>
         .SandboxedFunction__RegExp_esc {
             color: #a17d08;
         }
+        .SandboxedFunction_autoIns {
+            color: blueviolet;
+        }
     </style>`.replaceAll(/SandboxedFunction_/ig, SandboxedFunction.SandboxedFunctionHTMLClass).replaceAll(/\s+/g, ' ');
 function convertToPrototypeMap(obj, prototype) {
     const ensurePrototypeMap = function (proto) {
@@ -516,9 +713,19 @@ function convertToPrototypeMap(obj, prototype) {
     }
     return lastMap ?? new PrototypeMap();
 }
-export class InternalSandboxedFunctionError extends Error {
+export class SandboxedFunctionError extends Error {
+    constructor(message, token) {
+        super(`${message}; at(line:${token.line}, column:${token.column}, ${token.index})`);
+    }
+}
+export class InternalSandboxedFunctionError extends SandboxedFunctionError {
+}
+export class SandboxedFunctionSyntaxError extends Error {
     constructor(message, line, column, index) {
         super(`${message}; at(line:${line}, column:${column}, ${index})`);
+    }
+    static fromInstructionToken(message, token) {
+        return new SandboxedFunctionSyntaxError(message, token.line, token.column, token.index);
     }
 }
 class Scope extends Array {
@@ -536,13 +743,13 @@ SandboxedFunction.prototype.run = function (..._parameters) {
             case "identifier":
                 if (runContext.stage === 'var-decl') {
                     if (map === undefined) {
-                        throw new InternalSandboxedFunctionError('map is undefined', instructionToken.line, instructionToken.column, instructionToken.index);
+                        throw new InternalSandboxedFunctionError('map is undefined', instructionToken);
                     }
                     map.set(instructionToken.value, SandboxedFunction.__undef);
                 }
                 else if (runContext.stage.endsWith('-decl')) {
                     if (map === undefined) {
-                        throw new InternalSandboxedFunctionError('map is undefined', instructionToken.line, instructionToken.column, instructionToken.index);
+                        throw new InternalSandboxedFunctionError('map is undefined', instructionToken);
                     }
                     map.set(instructionToken.value, SandboxedFunction.TemporalDeadZone);
                 }
