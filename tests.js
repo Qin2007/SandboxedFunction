@@ -17,13 +17,12 @@ import fs from 'node:fs';
 /**/
 //SandboxedFunction.__tokenize
 //chrono.parseDate
-`function add(x, y) {
+
+const sandboxedFunction = new SandboxedFunction(`function add(x, y) {
   return x + y
 }
 let z = add("2", 3)
-return z`;
-const sandboxedFunction = new SandboxedFunction(`{ 1
-2 } 3`), sandboxedFunction_string = sandboxedFunction.toHTMLString();
+[''];return z`), sandboxedFunction_string = sandboxedFunction.toHTMLString();
 //<pre class=${SandboxedFunction.SandboxedFunctionHTMLClass}outerHTML role=none><code>${JSON.stringify(sandboxedFunction, null,2)}</code></pre>
 fs.writeFile('hyperNode.html', `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <!--${sandboxedFunction_string.length}--><title>SandBoxedFunction</title>${SandboxedFunction.style}</head>

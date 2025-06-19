@@ -1,11 +1,14 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
-<!--323--><title>SandBoxedFunction</title><style> .SandFunc_outerHTML { background-color: lightgray; border: 1px solid darkgray; color: black; margin: 1em 0; padding: 0.2em; } .SandFunc_Black { color: black; } .SandFunc_string { color: #4caf50; } .SandFunc_keyword { color: #1a73e8; } .SandFunc_backslash { color: #986e09; } .SandFunc_Identifier { color: #e91e63; } .SandFunc_RegExp, .SandFunc_BigInt, .SandFunc_Number { color: #f44336; } .SandFunc__RegExp_esc { color: #a17d08; } .SandFunc_autoIns { color: blueviolet; } </style></head>
-<body><pre class=SandFunc_outerHTML role=none><code><span class=SandFunc_delimiter>{</span> <span class=SandFunc_BigInt>1</span>
-<span class=SandFunc_BigInt>2</span> <span class=SandFunc_autoIns>;</span><span class=SandFunc_delimiter>}</span> <span class=SandFunc_BigInt>3</span><span class=SandFunc_autoIns>;</span></code></pre><pre class=SandFunc_outerHTML role=none><code>{
+<!--1351--><title>SandBoxedFunction</title><style> .SandFunc_outerHTML { background-color: lightgray; border: 1px solid darkgray; color: black; margin: 1em 0; padding: 0.2em; } .SandFunc_Black { color: black; } .SandFunc_string { color: #4caf50; } .SandFunc_keyword { color: #1a73e8; } .SandFunc_backslash { color: #986e09; } .SandFunc_Identifier { color: #e91e63; } .SandFunc_RegExp, .SandFunc_BigInt, .SandFunc_Number { color: #f44336; } .SandFunc__RegExp_esc { color: #a17d08; } .SandFunc_autoIns { color: blueviolet; } </style></head>
+<body><pre class=SandFunc_outerHTML role=none><code><span class=SandFunc_keyword>function</span> <span class=SandFunc_Identifier>add</span><span class=SandFunc_delimiter>(</span><span class=SandFunc_Identifier>x</span><span class=SandFunc_delimiter>,</span> <span class=SandFunc_Identifier>y</span><span class=SandFunc_delimiter>)</span> <span class=SandFunc_delimiter>{</span>
+  <span class=SandFunc_keyword>return</span> <span class=SandFunc_Identifier>x</span> <span class=SandFunc_delimiter>+</span> <span class=SandFunc_Identifier>y</span><span class=SandFunc_autoIns>;</span>
+<span class=SandFunc_delimiter>}</span><span class=SandFunc_autoIns>;</span>
+<span class=SandFunc_keyword>let</span> <span class=SandFunc_Identifier>z</span> <span class=SandFunc_delimiter>=</span> <span class=SandFunc_Identifier>add</span><span class=SandFunc_delimiter>(</span><span class=SandFunc_string>&quot;2&quot;</span><span class=SandFunc_delimiter>,</span> <span class=SandFunc_BigInt>3</span><span class=SandFunc_delimiter>)</span><span class=SandFunc_autoIns>;</span>
+<span class=SandFunc_delimiter>[</span><span class=SandFunc_string>&#39;&#39;</span><span class=SandFunc_delimiter>]</span><span class=SandFunc_delimiter>;</span><span class=SandFunc_keyword>return</span> <span class=SandFunc_Identifier>z</span><span class=SandFunc_autoIns>;</span></code></pre><pre class=SandFunc_outerHTML role=none><code>{
   "instructionTokens": [
     {
-      "type": "delimiter",
-      "value": "{",
+      "type": "keyword",
+      "value": "function",
       "index": 0,
       "line": 0,
       "column": 0
@@ -13,73 +16,329 @@
     {
       "type": "whitespace",
       "value": " ",
-      "index": 1,
+      "index": 8,
       "line": 0,
-      "column": 1
+      "column": 8
     },
     {
-      "type": "number",
-      "value": "1",
-      "index": 2,
+      "type": "identifier",
+      "value": "add",
+      "index": 9,
       "line": 0,
-      "column": 2
+      "column": 9
+    },
+    {
+      "type": "delimiter",
+      "value": "(",
+      "index": 12,
+      "line": 0,
+      "column": 12
+    },
+    {
+      "type": "identifier",
+      "value": "x",
+      "index": 13,
+      "line": 0,
+      "column": 13
+    },
+    {
+      "type": "delimiter",
+      "value": ",",
+      "index": 14,
+      "line": 0,
+      "column": 14
+    },
+    {
+      "type": "whitespace",
+      "value": " ",
+      "index": 15,
+      "line": 0,
+      "column": 15
+    },
+    {
+      "type": "identifier",
+      "value": "y",
+      "index": 16,
+      "line": 0,
+      "column": 16
+    },
+    {
+      "type": "delimiter",
+      "value": ")",
+      "index": 17,
+      "line": 0,
+      "column": 17
+    },
+    {
+      "type": "whitespace",
+      "value": " ",
+      "index": 18,
+      "line": 0,
+      "column": 18
+    },
+    {
+      "type": "delimiter",
+      "value": "{",
+      "index": 19,
+      "line": 0,
+      "column": 19
+    },
+    {
+      "type": "whitespace",
+      "value": "\n  ",
+      "index": 20,
+      "line": 0,
+      "column": 20
+    },
+    {
+      "type": "keyword",
+      "value": "return",
+      "index": 23,
+      "line": 1,
+      "column": 3
+    },
+    {
+      "type": "whitespace",
+      "value": " ",
+      "index": 29,
+      "line": 1,
+      "column": 9
+    },
+    {
+      "type": "identifier",
+      "value": "x",
+      "index": 30,
+      "line": 1,
+      "column": 10
+    },
+    {
+      "type": "whitespace",
+      "value": " ",
+      "index": 31,
+      "line": 1,
+      "column": 11
+    },
+    {
+      "type": "operator",
+      "value": "+",
+      "index": 32,
+      "line": 1,
+      "column": 12
+    },
+    {
+      "type": "whitespace",
+      "value": " ",
+      "index": 33,
+      "line": 1,
+      "column": 13
+    },
+    {
+      "type": "identifier",
+      "value": "y",
+      "index": 34,
+      "line": 1,
+      "column": 14
+    },
+    {
+      "type": "delimiter",
+      "value": ";",
+      "index": 34,
+      "line": 1,
+      "column": 14,
+      "autoInserted": true
     },
     {
       "type": "whitespace",
       "value": "\n",
-      "index": 3,
-      "line": 0,
-      "column": 3
+      "index": 35,
+      "line": 1,
+      "column": 15
     },
     {
-      "type": "number",
-      "value": "2",
-      "index": 4,
-      "line": 1,
+      "type": "delimiter",
+      "value": "}",
+      "index": 36,
+      "line": 2,
+      "column": 1
+    },
+    {
+      "type": "delimiter",
+      "value": ";",
+      "index": 36,
+      "line": 2,
+      "column": 1,
+      "autoInserted": true
+    },
+    {
+      "type": "whitespace",
+      "value": "\n",
+      "index": 37,
+      "line": 2,
+      "column": 2
+    },
+    {
+      "type": "keyword",
+      "value": "let",
+      "index": 38,
+      "line": 3,
       "column": 1
     },
     {
       "type": "whitespace",
       "value": " ",
-      "index": 5,
-      "line": 1,
+      "index": 41,
+      "line": 3,
+      "column": 4
+    },
+    {
+      "type": "identifier",
+      "value": "z",
+      "index": 42,
+      "line": 3,
+      "column": 5
+    },
+    {
+      "type": "whitespace",
+      "value": " ",
+      "index": 43,
+      "line": 3,
+      "column": 6
+    },
+    {
+      "type": "operator",
+      "value": "=",
+      "index": 44,
+      "line": 3,
+      "column": 7
+    },
+    {
+      "type": "whitespace",
+      "value": " ",
+      "index": 45,
+      "line": 3,
+      "column": 8
+    },
+    {
+      "type": "identifier",
+      "value": "add",
+      "index": 46,
+      "line": 3,
+      "column": 9
+    },
+    {
+      "type": "delimiter",
+      "value": "(",
+      "index": 49,
+      "line": 3,
+      "column": 12
+    },
+    {
+      "type": "string",
+      "value": "2",
+      "delimiter": "\"",
+      "index": 50,
+      "line": 3,
+      "column": 13
+    },
+    {
+      "type": "delimiter",
+      "value": ",",
+      "index": 51,
+      "line": 3,
+      "column": 14
+    },
+    {
+      "type": "whitespace",
+      "value": " ",
+      "index": 52,
+      "line": 3,
+      "column": 15
+    },
+    {
+      "type": "number",
+      "value": "3",
+      "index": 53,
+      "line": 3,
+      "column": 16
+    },
+    {
+      "type": "delimiter",
+      "value": ")",
+      "index": 54,
+      "line": 3,
+      "column": 17
+    },
+    {
+      "type": "delimiter",
+      "value": ";",
+      "index": 54,
+      "line": 3,
+      "column": 17,
+      "autoInserted": true
+    },
+    {
+      "type": "whitespace",
+      "value": "\n",
+      "index": 55,
+      "line": 3,
+      "column": 18
+    },
+    {
+      "type": "delimiter",
+      "value": "[",
+      "index": 56,
+      "line": 4,
+      "column": 1
+    },
+    {
+      "type": "string",
+      "value": "",
+      "delimiter": "'",
+      "index": 57,
+      "line": 4,
+      "column": 2
+    },
+    {
+      "type": "delimiter",
+      "value": "]",
+      "index": 57,
+      "line": 4,
       "column": 2
     },
     {
       "type": "delimiter",
       "value": ";",
-      "index": 6,
-      "line": 1,
-      "column": 3,
-      "autoInserted": true
+      "index": 58,
+      "line": 4,
+      "column": 3
     },
     {
-      "type": "delimiter",
-      "value": "}",
-      "index": 6,
-      "line": 1,
-      "column": 3
+      "type": "keyword",
+      "value": "return",
+      "index": 59,
+      "line": 4,
+      "column": 4
     },
     {
       "type": "whitespace",
       "value": " ",
-      "index": 7,
-      "line": 1,
-      "column": 4
+      "index": 65,
+      "line": 4,
+      "column": 10
     },
     {
-      "type": "number",
-      "value": "3",
-      "index": 8,
-      "line": 1,
-      "column": 5
+      "type": "identifier",
+      "value": "z",
+      "index": 66,
+      "line": 4,
+      "column": 11
     },
     {
       "type": "delimiter",
       "value": ";",
-      "index": 8,
-      "line": 1,
-      "column": 5,
+      "index": 66,
+      "line": 4,
+      "column": 11,
       "autoInserted": true
     }
   ],

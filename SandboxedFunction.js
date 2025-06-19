@@ -208,97 +208,285 @@ export const SandboxedFunction = function (javascript, globalObject) {
 //     // Filter out whitespace and comment tokens if not needed in final output
 //     return resultTokens//.filter(token => token.type !== 'whitespace' && token.type !== 'comment');
 // };
+// const applyASI = function (instructionTokens: instructionToken[]) {
+//     const instructionTokenList: instructionToken[] = [], makeVirtualSemicolon = function (at: instructionToken) {
+//         const index: number = at.index, line: number = at.line, column: number = at.column;
+//         return ({type: "delimiter", value: ";", index, line, column, autoInserted: true,});
+//     },/* isStatementTerminated = function (currentIndex: number): boolean {
+//         let semicolonEncountered: boolean = false;
+//         for (const instructionToken of instructionTokens.slice(0, currentIndex + 1).reverse()) {
+//             semicolonEncountered = (instructionToken.type === "delimiter" && instructionToken.value === ';') || semicolonEncountered;
+//         }
+//         return semicolonEncountered;
+//     }, nextNonWhitespace = function (currentIndex: number): number {
+//         let index: number = currentIndex;
+//         for (const instructionToken of instructionTokens.slice(currentIndex)) {
+//             if (instructionToken.type !== "whitespace") {
+//                 return index;
+//             }
+//             index++;
+//         }
+//         return NaN;
+//     },*/ bracketStack: string[] = [], testIsLiteral = function (instructionToken: instructionToken): boolean {
+//         return 'string,number,BigInt,RegExp,TemplateLiteral,operator'.split(/,/g).includes(instructionToken.type) ||
+//             (instructionToken.type === "keyword" && /^(?:true|false|null|typeof|void|yield|this|new)$/.test(instructionToken.value))
+//     }, variables = new Map();
+//     let i: number = -1, instructionToken: instructionToken, declWith: "var" | "let" | "const" | undefined = undefined,// lastInsertedSemicolon: number = i,
+//         expectationStage: "expression" | "statement" | "expressionStatement" | "vari-name" | "vari-equals" = 'statement';
+//     while (instructionToken = instructionTokens[++i]) {
+//         const current: instructionToken = instructionToken, next: instructionToken = instructionTokens[i + 1];
+//         // Rule 2: Before a closing }
+//         if (instructionToken.type === "delimiter" && instructionToken.value === '}') {
+//             instructionTokenList.push(makeVirtualSemicolon(current), instructionToken);
+//             continue;
+//         }
+//
+//         if (instructionToken.type === "delimiter" && instructionToken.value === ';') {
+//             if (bracketStack.length > 0) {
+//                 throw SandboxedFunctionSyntaxError.fromInstructionToken('brackets arent closed', instructionToken);
+//             }
+//             // lastInsertedSemicolon = i;
+//         } else if (instructionToken.type === "delimiter" && instructionToken.value === '{') {
+//             bracketStack.push('block');
+//         }
+//         if (testIsLiteral(instructionToken)) {
+//             expectationStage = "expressionStatement";
+//         }
+//         if (instructionToken.type === "keyword" && instructionToken.value === 'var' || instructionToken.value === 'let' || instructionToken.value === 'const') {
+//             if (expectationStage !== 'statement') {
+//                 expectationStage = "vari-name";
+//                 declWith = instructionToken.value;
+//                 instructionTokenList.push(instructionToken);
+//                 continue;
+//             }
+//         }
+//         if (expectationStage === 'vari-name') {
+//             if (instructionToken.type !== "identifier") {
+//                 throw SandboxedFunctionSyntaxError.fromInstructionToken('after let, const, or var avariable  name must be provided', instructionToken);
+//             }
+//             if (declWith === 'var') {
+//                 variables.set(instructionToken.value, __undef);
+//             } else {
+//                 variables.set(instructionToken.value, TemporalDeadZone);
+//             }
+//             instructionTokenList.push(instructionToken);
+//             expectationStage = 'expression';
+//             continue;
+//         }
+//         if (instructionToken.type === "whitespace" && instructionToken.value.includes('\n') && next) {
+//             if (testIsLiteral(next)) {
+//                 expectationStage = 'statement';
+//                 // lastInsertedSemicolon = i;
+//             }
+//         }
+//         // if (instructionToken.type === "whitespace" && instructionToken.value.includes('\n') && !isStatementTerminated(i))
+//         // {const the_nextNonWhitespace = nextNonWhitespace(i);if (!Number.isNaN(the_nextNonWhitespace)) {
+//         // if (!'[+-*/.('.split(new RegExp('')).includes(instructionTokens[the_nextNonWhitespace].value)) {
+//         // instructionTokenList.push(makeVirtualSemicolon(current), instructionToken);continue;}}}
+//
+//         instructionTokenList.push(instructionToken);
+//
+//         // Rule 1: Line break after return/break/continue/throw
+//         if (current.type === "keyword" && ["return", "break", "continue", "throw"].includes(current.value)) {
+//             if (next && next.value.includes('\n')) {
+//                 instructionTokenList.push(makeVirtualSemicolon(next));
+//             }
+//         }
+//     }
+//     const nan = {index: NaN, line: NaN, column: NaN},
+//         last_instructionToken = instructionTokenList.at(-1) ?? nan,
+//         index: number = last_instructionToken.index,
+//         line: number = last_instructionToken.line,
+//         column: number = last_instructionToken.column;
+//     instructionTokenList.push({
+//         type: "delimiter", value: ";", index,
+//         line, column, autoInserted: true,
+//     });
+//     instructionTokenList.forEach(t => console.log(t));
+//     return instructionTokenList;//{instructionTokenList, variables};
+// };
 const applyASI = function (instructionTokens) {
-    const instructionTokenList = [], makeVirtualSemicolon = function (at) {
-        const index = at.index, line = at.line, column = at.column;
-        return ({ type: "delimiter", value: ";", index, line, column, autoInserted: true, });
-    }, /* isStatementTerminated = function (currentIndex: number): boolean {
-        let semicolonEncountered: boolean = false;
-        for (const instructionToken of instructionTokens.slice(0, currentIndex + 1).reverse()) {
-            semicolonEncountered = (instructionToken.type === "delimiter" && instructionToken.value === ';') || semicolonEncountered;
-        }
-        return semicolonEncountered;
-    }, nextNonWhitespace = function (currentIndex: number): number {
-        let index: number = currentIndex;
-        for (const instructionToken of instructionTokens.slice(currentIndex)) {
-            if (instructionToken.type !== "whitespace") {
-                return index;
+    const result = [];
+    const makeVirtualSemicolon = function (at) {
+        return {
+            type: "delimiter",
+            value: ";",
+            index: at.index,
+            line: at.line,
+            column: at.column,
+            autoInserted: true
+        };
+    };
+    // Helper function to check if there's a line terminator between two tokens
+    const hasLineTerminatorBetween = function (startIndex, endIndex) {
+        for (let i = startIndex + 1; i < endIndex; i++) {
+            if (instructionTokens[i].type === 'whitespace' && /[\n\r\u2028\u2029]/.test(instructionTokens[i].value)) {
+                return true;
             }
-            index++;
         }
-        return NaN;
-    },*/ bracketStack = [], testIsLiteral = function (instructionToken) {
-        return 'string,number,BigInt,RegExp,TemplateLiteral,operator'.split(/,/g).includes(instructionToken.type) ||
-            (instructionToken.type === "keyword" && /^(?:true|false|null|typeof|void|yield|this|new)$/.test(instructionToken.value));
-    }, variables = new Map();
-    let i = -1, instructionToken, declWith = undefined, // lastInsertedSemicolon: number = i,
-    expectationStage = 'statement';
-    while (instructionToken = instructionTokens[++i]) {
-        const current = instructionToken, next = instructionTokens[i + 1];
-        // Rule 2: Before a closing }
-        if (instructionToken.type === "delimiter" && instructionToken.value === '}') {
-            instructionTokenList.push(makeVirtualSemicolon(current), instructionToken);
+        return false;
+    };
+    // Helper to find next non-whitespace, non-comment token
+    const findNextNonWhitespace = function (startIndex) {
+        for (let i = startIndex; i < instructionTokens.length; i++) {
+            const token = instructionTokens[i];
+            if (token.type !== 'whitespace' && token.type !== 'comment') {
+                return i;
+            }
+        }
+        return -1;
+    };
+    // Helper to find previous non-whitespace, non-comment token
+    const findPrevNonWhitespace = function (startIndex) {
+        for (let i = startIndex; i >= 0; i--) {
+            const token = instructionTokens[i];
+            if (token.type !== 'whitespace' && token.type !== 'comment') {
+                return i;
+            }
+        }
+        return -1;
+    };
+    // Check if token can end a statement
+    const canEndStatement = function (token) {
+        return (token.type === 'identifier' ||
+            token.type === 'number' ||
+            token.type === 'BigInt' ||
+            token.type === 'string' ||
+            token.type === 'TemplateLiteral' ||
+            token.type === 'RegExp' ||
+            (token.type === 'keyword' && ['this', 'true', 'false', 'null', 'undefined'].includes(token.value)) ||
+            (token.type === 'delimiter' && [')', ']', '}'].includes(token.value)) ||
+            (token.type === 'operator' && ['++', '--'].includes(token.value)));
+    };
+    // Check if token can start a statement
+    const canStartStatement = function (token) {
+        return (token.type === 'identifier' ||
+            token.type === 'number' ||
+            token.type === 'BigInt' ||
+            token.type === 'string' ||
+            token.type === 'TemplateLiteral' ||
+            token.type === 'RegExp' ||
+            (token.type === 'keyword' && !['else', 'catch', 'finally', 'while'].includes(token.value)) ||
+            (token.type === 'delimiter' && ['(', '[', '{'].includes(token.value)) ||
+            (token.type === 'operator' && ['++', '--', '+', '-', '!', '~', 'typeof', 'void', 'delete'].includes(token.value)));
+    };
+    // Check if we're in a do-while context
+    const isInDoWhileContext = function (currentIndex) {
+        let braceCount = 0;
+        let foundDo = false;
+        // Look backwards for 'do' keyword
+        for (let i = currentIndex - 1; i >= 0; i--) {
+            const token = instructionTokens[i];
+            if (token.type === 'delimiter') {
+                if (token.value === '}')
+                    braceCount++;
+                else if (token.value === '{')
+                    braceCount--;
+            }
+            else if (token.type === 'keyword' && token.value === 'do' && braceCount === 0) {
+                foundDo = true;
+                break;
+            }
+        }
+        if (!foundDo)
+            return false;
+        // Look forward for 'while' keyword
+        const nextIndex = findNextNonWhitespace(currentIndex + 1);
+        return nextIndex !== -1 && instructionTokens[nextIndex].type === 'keyword' && instructionTokens[nextIndex].value === 'while';
+    };
+    // Check for restricted productions (no LineTerminator here)
+    const isRestrictedProduction = function (token) {
+        return ((token.type === 'keyword' && ['return', 'throw', 'break', 'continue'].includes(token.value)) ||
+            (token.type === 'operator' && ['++', '--'].includes(token.value)));
+    };
+    let i = 0;
+    while (i < instructionTokens.length) {
+        const current = instructionTokens[i];
+        const nextIndex = findNextNonWhitespace(i + 1);
+        const next = nextIndex !== -1 ? instructionTokens[nextIndex] : null;
+        result.push(current);
+        // Skip whitespace and comments for ASI logic
+        if (current.type === 'whitespace' || current.type === 'comment') {
+            i++;
             continue;
         }
-        if (instructionToken.type === "delimiter" && instructionToken.value === ';') {
-            if (bracketStack.length > 0) {
-                throw SandboxedFunctionSyntaxError.fromInstructionToken('brackets arent closed', instructionToken);
-            }
-            // lastInsertedSemicolon = i;
-        }
-        else if (instructionToken.type === "delimiter" && instructionToken.value === '{') {
-            bracketStack.push('block');
-        }
-        if (testIsLiteral(instructionToken)) {
-            expectationStage = "expressionStatement";
-        }
-        if (instructionToken.type === "keyword" && instructionToken.value === 'var' || instructionToken.value === 'let' || instructionToken.value === 'const') {
-            if (expectationStage !== 'statement') {
-                expectationStage = "vari-name";
-                declWith = instructionToken.value;
-                instructionTokenList.push(instructionToken);
-                continue;
-            }
-        }
-        if (expectationStage === 'vari-name') {
-            if (instructionToken.type !== "identifier") {
-                throw SandboxedFunctionSyntaxError.fromInstructionToken('after let, const, or var avariable  name must be provided', instructionToken);
-            }
-            if (declWith === 'var') {
-                variables.set(instructionToken.value, __undef);
-            }
-            else {
-                variables.set(instructionToken.value, TemporalDeadZone);
-            }
-            instructionTokenList.push(instructionToken);
-            expectationStage = 'expression';
-            continue;
-        }
-        if (instructionToken.type === "whitespace" && instructionToken.value.includes('\n') && next) {
-            if (testIsLiteral(next)) {
-                expectationStage = 'statement';
-                // lastInsertedSemicolon = i;
+        // ASI Rule 1: When a token (offending token) is encountered that is not allowed
+        // by any production of the grammar
+        if (next) {
+            const hasLineTerminator = hasLineTerminatorBetween(i, nextIndex);
+            // Check if current token can end a statement and next can start one
+            if (canEndStatement(current) && canStartStatement(next)) {
+                let shouldInsertSemicolon = false;
+                // Sub-rule: separated by LineTerminator
+                if (hasLineTerminator) {
+                    shouldInsertSemicolon = true;
+                }
+                // Sub-rule: next token is '}'
+                if (next.type === 'delimiter' && next.value === '}') {
+                    shouldInsertSemicolon = true;
+                }
+                // Special case: avoid ASI in do-while
+                if (current.type === 'delimiter' && current.value === ')' && isInDoWhileContext(i)) {
+                    shouldInsertSemicolon = false;
+                }
+                if (shouldInsertSemicolon) {
+                    result.push(makeVirtualSemicolon(current));
+                }
             }
         }
-        // if (instructionToken.type === "whitespace" && instructionToken.value.includes('\n') && !isStatementTerminated(i))
-        // {const the_nextNonWhitespace = nextNonWhitespace(i);if (!Number.isNaN(the_nextNonWhitespace)) {
-        // if (!'[+-*/.('.split(new RegExp('')).includes(instructionTokens[the_nextNonWhitespace].value)) {
-        // instructionTokenList.push(makeVirtualSemicolon(current), instructionToken);continue;}}}
-        instructionTokenList.push(instructionToken);
-        // Rule 1: Line break after return/break/continue/throw
-        if (current.type === "keyword" && ["return", "break", "continue", "throw"].includes(current.value)) {
-            if (next && next.value.includes('\n')) {
-                instructionTokenList.push(makeVirtualSemicolon(next));
+        // ASI Rule 2: When the end of the input stream of tokens is encountered
+        if (!next && canEndStatement(current)) {
+            result.push(makeVirtualSemicolon(current));
+        }
+        // ASI Rule 3: Restricted productions
+        if (isRestrictedProduction(current) && next) {
+            const hasLineTerminator = hasLineTerminatorBetween(i, nextIndex);
+            if (hasLineTerminator) {
+                result.push(makeVirtualSemicolon(current));
             }
         }
+        // Special handling for specific constructs
+        // Handle empty statements (consecutive semicolons are valid)
+        if (current.type === 'delimiter' && current.value === ';') {
+            // No special action needed, semicolon is already added
+        }
+        // Handle block statements - insert semicolon before closing brace if needed
+        if (next && next.type === 'delimiter' && next.value === '}') {
+            const prevIndex = findPrevNonWhitespace(nextIndex - 1);
+            if (prevIndex !== -1) {
+                const prevToken = instructionTokens[prevIndex];
+                if (canEndStatement(prevToken) &&
+                    !(prevToken.type === 'delimiter' && [';', '}'].includes(prevToken.value))) {
+                    // Insert semicolon before the closing brace
+                    result.push(makeVirtualSemicolon(prevToken));
+                }
+            }
+        }
+        // Handle array/object literals starting a line (potential ASI hazard)
+        if (next && hasLineTerminatorBetween(i, nextIndex)) {
+            if ((next.type === 'delimiter' && ['[', '('].includes(next.value)) ||
+                (next.type === 'TemplateLiteral')) {
+                // These tokens can be problematic after line breaks
+                if (canEndStatement(current)) {
+                    result.push(makeVirtualSemicolon(current));
+                }
+            }
+        }
+        i++;
     }
-    const nan = { index: NaN, line: NaN, column: NaN }, last_instructionToken = instructionTokenList.at(-1) ?? nan, index = last_instructionToken.index, line = last_instructionToken.line, column = last_instructionToken.column;
-    instructionTokenList.push({
-        type: "delimiter", value: ";", index,
-        line, column, autoInserted: true,
-    });
-    instructionTokenList.forEach(t => console.log(t));
-    return instructionTokenList; //{instructionTokenList, variables};
+    // Clean up: remove consecutive auto-inserted semicolons
+    const cleanResult = [];
+    for (let j = 0; j < result.length; j++) {
+        const token = result[j];
+        const nextToken = result[j + 1];
+        // Skip auto-inserted semicolon if followed by another semicolon
+        if (token.type === 'delimiter' && token.value === ';' && token.autoInserted &&
+            nextToken && nextToken.type === 'delimiter' && nextToken.value === ';') {
+            continue;
+        }
+        cleanResult.push(token);
+    }
+    return cleanResult;
 };
 SandboxedFunction.SandboxedFunctionHTMLClass = 'SandFunc_';
 SandboxedFunction.prototype.toHTMLString = function () {
@@ -612,79 +800,51 @@ SandboxedFunction.__tokenize = function (javascript) {
     //tokens.push({type: 'delimiter', value: ';'});
     return tokens;
 };
-// SandboxedFunction.style = SandboxedFunction.styletag = `<style>
-//         .SandboxedFunction_outerHTML {
-//             background-color: lightgray;
-//             border: 1px solid darkgray;
-//             color: black;
-//             margin: 1em 0;
-//             padding: 0.2em;
-//         }
-//         .SandboxedFunction_Black {
-//             color: black;
-//         }
-//
-//         .SandboxedFunction_string {
-//             color: darkgreen;
-//         }
-//
-//         .SandboxedFunction_keyword, .SandboxedFunction_backslash {
-//             color: #D66100;
-//         }
-//
-//         .SandboxedFunction_Identifier {
-//             color: #986e09;
-//         }
-//
-//         .SandboxedFunction_RegExp, .SandboxedFunction_BigInt, .SandboxedFunction_Number {
-//             color: #0073a6;
-//         }
-//
-//         .SandboxedFunction__RegExp_esc {
-//             color: #a17d08;
-//         }
-//     </style>`.replaceAll(/SandboxedFunction_/ig,
-//     SandboxedFunction.SandboxedFunctionHTMLClass).replaceAll(/\s+/g, ' ');
-SandboxedFunction.style = SandboxedFunction.styletag = `<style>
-        .SandboxedFunction_outerHTML {
-            background-color: lightgray;
-            border: 1px solid darkgray;
-            color: black;
-            margin: 1em 0;
-            padding: 0.2em;
-        }
+Object.defineProperty(SandboxedFunction, 'style', {
+    get() {
+        const style = `<style>
+    .SandboxedFunction_outerHTML {
+        background-color: lightgray;
+        border: 1px solid darkgray;
+        color: black;
+        margin: 1em 0;
+        padding: 0.2em;
+    }
 
-        .SandboxedFunction_Black {
-            color: black;
-        }
+    .SandboxedFunction_Black {
+        color: black;
+    }
 
-        .SandboxedFunction_string {
-            color: #4caf50;
-        }
+    .SandboxedFunction_string {
+        color: #4caf50;
+    }
 
-        .SandboxedFunction_keyword {
-            color: #1a73e8;
-        }
+    .SandboxedFunction_keyword {
+        color: #1a73e8;
+    }
 
-        .SandboxedFunction_backslash {
-            color: #986e09;
-        }
+    .SandboxedFunction_backslash {
+        color: #986e09;
+    }
 
-        .SandboxedFunction_Identifier {
-            color: #e91e63;
-        }
+    .SandboxedFunction_Identifier {
+        color: #e91e63;
+    }
 
-        .SandboxedFunction_RegExp, .SandboxedFunction_BigInt, .SandboxedFunction_Number {
-            color: #f44336;
-        }
+    .SandboxedFunction_RegExp, .SandboxedFunction_BigInt, .SandboxedFunction_Number {
+        color: #f44336;
+    }
 
-        .SandboxedFunction__RegExp_esc {
-            color: #a17d08;
-        }
-        .SandboxedFunction_autoIns {
-            color: blueviolet;
-        }
-    </style>`.replaceAll(/SandboxedFunction_/ig, SandboxedFunction.SandboxedFunctionHTMLClass).replaceAll(/\s+/g, ' ');
+    .SandboxedFunction__RegExp_esc {
+        color: #a17d08;
+    }
+    .SandboxedFunction_autoIns {
+        color: blueviolet;
+    }
+</style>`;
+        return style.replaceAll(/SandboxedFunction_/ig, SandboxedFunction.SandboxedFunctionHTMLClass).replaceAll(/\s+/g, ' ');
+    }
+});
 function convertToPrototypeMap(obj, prototype) {
     const ensurePrototypeMap = function (proto) {
         if (proto === null)
